@@ -103,13 +103,24 @@ export default function VehicleLogs() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">주차 위치 사진 (선택)</label>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById('parking-photo')?.click()}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                            >
+                                <Camera className="h-5 w-5" />
+                                📸 사진 찍기 / 선택하기
+                            </button>
+                        </div>
                         <input
+                            id="parking-photo"
                             type="file"
                             accept="image/*"
                             capture="environment"
-                            className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
+                            className="hidden"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">📸 모바일에서 카메라로 직접 촬영하거나 갤러리에서 선택할 수 있습니다</p>
+                        <p className="text-xs text-muted-foreground mt-1">모바일: 카메라로 직접 촬영 | 데스크톱: 파일 선택</p>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">

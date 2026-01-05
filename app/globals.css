@@ -4,38 +4,38 @@
 
 @layer base {
     :root {
-        /* Very Dark Blue Theme - High Contrast */
-        --background: 214 100% 85%;
-        /* Dark blue #BFDBFE (blue-200) */
-        --foreground: 215 35% 12%;
-        /* Very dark blue text */
+        /* Deep Dark Blue Theme - Professional & Bold */
+        --background: 221 83% 53%;
+        /* Deep blue #3b5998 (Facebook blue tone) */
+        --foreground: 0 0% 100%;
+        /* White text */
 
-        --card: 0 0% 100%;
-        /* White cards */
-        --card-foreground: 215 35% 12%;
+        --card: 220 40% 25%;
+        /* Dark blue-gray cards */
+        --card-foreground: 0 0% 100%;
 
-        --popover: 0 0% 100%;
-        --popover-foreground: 215 35% 12%;
+        --popover: 220 40% 20%;
+        --popover-foreground: 0 0% 100%;
 
         --primary: 217 91% 60%;
         /* Bright blue (#3b82f6) */
         --primary-foreground: 0 0% 100%;
 
-        --secondary: 214 95% 75%;
-        /* Medium blue */
-        --secondary-foreground: 215 35% 20%;
+        --secondary: 220 35% 35%;
+        /* Medium dark blue */
+        --secondary-foreground: 0 0% 100%;
 
-        --muted: 214 90% 78%;
-        --muted-foreground: 215 25% 35%;
+        --muted: 220 30% 40%;
+        --muted-foreground: 220 15% 75%;
 
-        --accent: 217 91% 85%;
-        --accent-foreground: 217 91% 45%;
+        --accent: 217 91% 50%;
+        --accent-foreground: 0 0% 100%;
 
-        --destructive: 0 72% 51%;
+        --destructive: 0 62% 50%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 214 75% 70%;
-        --input: 214 75% 73%;
+        --border: 220 25% 45%;
+        --input: 220 30% 35%;
         --ring: 217 91% 60%;
 
         --radius: 0.75rem;
@@ -54,11 +54,11 @@
 }
 
 .glass {
-    @apply bg-white/90 border border-border backdrop-blur-md shadow-sm;
+    @apply bg-card/90 border border-border backdrop-blur-md shadow-lg;
 }
 
 .glass-card {
-    @apply bg-white border border-border shadow-md;
+    @apply bg-card border border-border shadow-xl;
 }
 
 /* Scrollbar */
