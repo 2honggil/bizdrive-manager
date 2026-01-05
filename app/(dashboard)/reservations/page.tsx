@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import Modal from "@/components/Modal";
 
 // Mock reservation data
 const reservations = [
@@ -14,6 +15,7 @@ const reservations = [
 
 export default function Reservations() {
     const [currentDate, setCurrentDate] = useState(new Date(2024, 0, 4));
+    const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
 
     const daysInMonth = 31;
     const startDayOffset = 1;
@@ -55,22 +57,9 @@ export default function Reservations() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">차량예약</h1>
-                    <p className="text-muted-foreground text-sm mt-1">차량 사용 일정을 확인하고 예약합니다.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors border border-border">
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <span className="text-lg font-bold text-foreground px-4">2024년 1월</span>
-                    <button className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors border border-border">
-                        <ChevronRight className="h-4 w-4" />
-                    </button>
-                    <button className="ml-4 flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
-                        <Plus className="h-4 w-4" />
-                        예약하기
                     </button>
                 </div>
             </div>
@@ -88,6 +77,6 @@ export default function Reservations() {
                     {renderCalendarDays()}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

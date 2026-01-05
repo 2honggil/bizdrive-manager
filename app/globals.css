@@ -4,41 +4,41 @@
 
 @layer base {
     :root {
-        /* Modern Light Slate Theme - Trendy 2024+ */
-        --background: 220 20% 98%;
-        /* Very light gray-blue */
-        --foreground: 220 15% 15%;
-        /* Dark slate text */
+        /* Modern Blue Theme - Professional & Easy on Eyes */
+        --background: 215 25% 97%;
+        /* Very light blue-gray */
+        --foreground: 215 20% 15%;
+        /* Dark blue-gray text */
 
         --card: 0 0% 100%;
-        /* Pure white cards */
-        --card-foreground: 220 15% 15%;
+        /* White cards */
+        --card-foreground: 215 20% 15%;
 
         --popover: 0 0% 100%;
-        --popover-foreground: 220 15% 15%;
+        --popover-foreground: 215 20% 15%;
 
-        --primary: 262 80% 55%;
-        /* Vibrant purple */
+        --primary: 217 91% 60%;
+        /* Bright blue (#3b82f6 - blue-500) */
         --primary-foreground: 0 0% 100%;
 
-        --secondary: 220 15% 95%;
-        /* Light gray background */
-        --secondary-foreground: 220 15% 25%;
+        --secondary: 215 20% 93%;
+        /* Light blue-gray background */
+        --secondary-foreground: 215 20% 25%;
 
-        --muted: 220 15% 92%;
-        --muted-foreground: 220 10% 45%;
+        --muted: 215 20% 90%;
+        --muted-foreground: 215 15% 40%;
 
-        --accent: 262 75% 97%;
-        /* Very light purple */
-        --accent-foreground: 262 80% 55%;
+        --accent: 217 91% 95%;
+        /* Very light blue */
+        --accent-foreground: 217 91% 60%;
 
         --destructive: 0 72% 51%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 220 15% 88%;
-        /* Light border */
-        --input: 220 15% 90%;
-        --ring: 262 80% 55%;
+        --border: 215 20% 85%;
+        /* Light blue-gray border */
+        --input: 215 20% 88%;
+        --ring: 217 91% 60%;
 
         --radius: 0.75rem;
     }
@@ -56,7 +56,7 @@
 }
 
 .glass {
-    @apply bg-white/80 border border-border backdrop-blur-md shadow-sm;
+    @apply bg-white/90 border border-border backdrop-blur-md shadow-sm;
 }
 
 .glass-card {
@@ -74,10 +74,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #94a3b8;
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #64748b;
 }

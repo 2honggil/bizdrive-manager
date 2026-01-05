@@ -1,6 +1,8 @@
 "use client";
 
 import { Fuel, DollarSign, Download, Plus, Search, Filter } from "lucide-react";
+import { useState } from "react";
+import Modal from "@/components/Modal";
 
 const fuelMockData = [
     { id: 1, date: "2024.01.03", car: "쏘렌토 (195하4504)", type: "주유", amount: "55,000", location: "만남의광장 주유소", driver: "홍길동" },
@@ -10,6 +12,8 @@ const fuelMockData = [
 ];
 
 export default function FuelTokensPage() {
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -22,12 +26,60 @@ export default function FuelTokensPage() {
                         <Download className="h-4 w-4" />
                         내보내기
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20">
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                    >
                         <Plus className="h-4 w-4" />
                         지출 등록
                     </button>
                 </div>
             </div>
+
+            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="지출 등록하기">
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">날짜</label>
+                            <input type="date" required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">차량</label>
+                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                <option value="">선택</option>
+                                <option>쏘렌토 (195하4504)</option>
+                                <option>아반떼 (123가4567)</option>
+                                <option>카니발 (333루3333)</option>
+                                <option>그랜저 (999호9999)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">지출 유형</label>
+                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                <option value="">선택</option>
+                                <option>주유</option>
+                                <option>통행료</option>
+                                <option>수리비</option>
+                                <option>기타</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">금액 (원)</label>
+                            <input type="number" required placeholder="55000" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">위치/상세</label>
+                        <input type="text" placeholder="예: 만남의광장 주유소" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">등록하기</button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
