@@ -4,42 +4,41 @@
 
 @layer base {
     :root {
-        /* Modern Gradient Blue Theme - 2024 Trend */
-        --background: 210 100% 97%;
-        /* Very light blue */
-        --foreground: 220 18% 20%;
-        /* Dark blue-gray */
+        /* Modern Slate - Premium Dark Theme (Original) */
+        --background: 240 10% 3.9%;
+        /* Deep dark background */
+        --foreground: 0 0% 98%;
+        /* Near white text */
 
-        --card: 0 0% 100%;
-        /* Pure white cards with glass effect */
-        --card-foreground: 220 18% 20%;
+        --card: 240 10% 3.9%;
+        /* Dark cards */
+        --card-foreground: 0 0% 98%;
 
-        --popover: 0 0% 100%;
-        --popover-foreground: 220 18% 20%;
+        --popover: 240 10% 3.9%;
+        --popover-foreground: 0 0% 98%;
 
-        --primary: 211 100% 50%;
-        /* Vibrant cyan-blue (#007FFF) */
-        --primary-foreground: 0 0% 100%;
+        --primary: 262 80% 50%;
+        /* Vibrant purple accent */
+        --primary-foreground: 0 0% 98%;
 
-        --secondary: 210 40% 96%;
-        /* Very light blue-gray */
-        --secondary-foreground: 220 18% 30%;
+        --secondary: 240 3.7% 15.9%;
+        /* Dark gray */
+        --secondary-foreground: 0 0% 98%;
 
-        --muted: 210 40% 93%;
-        --muted-foreground: 220 13% 46%;
+        --muted: 240 3.7% 15.9%;
+        --muted-foreground: 240 5% 64.9%;
 
-        --accent: 211 100% 93%;
-        /* Light cyan */
-        --accent-foreground: 211 100% 40%;
+        --accent: 240 3.7% 15.9%;
+        --accent-foreground: 0 0% 98%;
 
-        --destructive: 0 84% 60%;
-        --destructive-foreground: 0 0% 100%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
 
-        --border: 210 30% 88%;
-        --input: 210 30% 92%;
-        --ring: 211 100% 50%;
+        --border: 240 3.7% 15.9%;
+        --input: 240 3.7% 15.9%;
+        --ring: 240 4.9% 83.9%;
 
-        --radius: 1rem;
+        --radius: 0.75rem;
     }
 }
 
@@ -49,48 +48,39 @@
     }
 
     body {
-        @apply bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50 text-foreground;
+        @apply bg-background text-foreground;
         font-feature-settings: "rlig" 1, "calt" 1;
-        background-attachment: fixed;
     }
 }
 
 .glass {
-    @apply bg-white/70 border border-white/40 backdrop-blur-xl shadow-xl shadow-blue-500/5;
+    @apply bg-zinc-950/70 border border-white/10 backdrop-blur-md shadow-2xl;
 }
 
 .glass-card {
-    @apply bg-white/80 border border-white/60 backdrop-blur-lg shadow-2xl shadow-cyan-500/10;
+    @apply bg-[#121215] border border-white/10 shadow-xl;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    @apply bg-blue-50/50;
-    border-radius: 10px;
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-blue-400 to-cyan-500;
-    border-radius: 10px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
+    background: #3f3f46;
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    @apply from-blue-500 to-cyan-600;
+    background: #52525b;
 }
 
-/* Modern hover effects */
-.hover-lift {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 20px 25px -5px rgba(0, 127, 255, 0.1), 0 10px 10px -5px rgba(0, 127, 255, 0.04);
+/* Premium hover effects */
+.hover-glow:hover {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
