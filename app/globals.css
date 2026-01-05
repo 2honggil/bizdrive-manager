@@ -4,40 +4,38 @@
 
 @layer base {
     :root {
-        /* Modern Blue Theme - Professional & Easy on Eyes */
-        --background: 215 25% 97%;
-        /* Very light blue-gray */
-        --foreground: 215 20% 15%;
+        /* Strong Blue Theme - Clearly Visible */
+        --background: 214 100% 97%;
+        /* Light blue #EBF4FF (blue-50) */
+        --foreground: 215 25% 15%;
         /* Dark blue-gray text */
 
         --card: 0 0% 100%;
         /* White cards */
-        --card-foreground: 215 20% 15%;
+        --card-foreground: 215 25% 15%;
 
         --popover: 0 0% 100%;
-        --popover-foreground: 215 20% 15%;
+        --popover-foreground: 215 25% 15%;
 
         --primary: 217 91% 60%;
-        /* Bright blue (#3b82f6 - blue-500) */
+        /* Bright blue (#3b82f6) */
         --primary-foreground: 0 0% 100%;
 
-        --secondary: 215 20% 93%;
-        /* Light blue-gray background */
-        --secondary-foreground: 215 20% 25%;
+        --secondary: 214 95% 93%;
+        /* Very light blue */
+        --secondary-foreground: 215 25% 25%;
 
-        --muted: 215 20% 90%;
-        --muted-foreground: 215 15% 40%;
+        --muted: 214 90% 90%;
+        --muted-foreground: 215 20% 40%;
 
         --accent: 217 91% 95%;
-        /* Very light blue */
         --accent-foreground: 217 91% 60%;
 
         --destructive: 0 72% 51%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 215 20% 85%;
-        /* Light blue-gray border */
-        --input: 215 20% 88%;
+        --border: 214 85% 85%;
+        --input: 214 85% 88%;
         --ring: 217 91% 60%;
 
         --radius: 0.75rem;
@@ -74,10 +72,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #94a3b8;
+    background: #93c5fd;
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+    background: #60a5fa;
 }

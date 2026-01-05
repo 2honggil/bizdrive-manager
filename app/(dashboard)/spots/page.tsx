@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MapPin, ParkingCircle, Plus, MoreVertical, Edit, Trash } from "lucide-react";
+import Modal from "@/components/Modal";
 
 const frequentDestinations = [
     { id: 1, name: "본사", address: "서울시 강남구 테헤란로 123", usage: 145 },
@@ -18,6 +19,7 @@ const frequentParking = [
 
 export default function FrequentSpotsPage() {
     const [activeTab, setActiveTab] = useState<'destinations' | 'parking'>('destinations');
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     return (
         <div className="space-y-6">
@@ -26,11 +28,55 @@ export default function FrequentSpotsPage() {
                     <h1 className="text-2xl font-bold text-foreground">자주가는곳 관리</h1>
                     <p className="text-muted-foreground text-sm mt-1">자주 방문하는 목적지와 주차장을 등록하여 입력을 간소화합니다.</p>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                >
                     <Plus className="h-4 w-4" />
                     {activeTab === 'destinations' ? '목적지 추가' : '주차장 추가'}
                 </button>
             </div>
+
+            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={activeTab === 'destinations' ? '목적지 추가' : '주차장 추가'}>
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
+                    {activeTab === 'destinations' ? (
+                        <>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">장소명</label>
+                                <input type="text" required placeholder="예: 본사" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">주소</label>
+                                <input type="text" required placeholder="서울시 강남구 테헤란로 123" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">주차장명</label>
+                                <input type="text" required placeholder="예: 본사 지하주차장" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">유형</label>
+                                <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                    <option value="">선택</option>
+                                    <option>실내</option>
+                                    <option>기계식</option>
+                                    <option>노상</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">메모</label>
+                                <input type="text" placeholder="예: B3층 임원 전용 구역" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            </div>
+                        </>
+                    )}
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">추가하기</button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Tabs */}
             <div className="border-b border-border">

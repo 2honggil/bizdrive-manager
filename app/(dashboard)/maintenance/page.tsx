@@ -1,6 +1,8 @@
 "use client";
 
 import { Wrench, Calendar, AlertTriangle, Plus, Filter } from "lucide-react";
+import { useState } from "react";
+import Modal from "@/components/Modal";
 
 const maintenanceData = [
     { id: 1, car: "쏘렌토 (195하4504)", type: "정기점검", date: "2024.01.02", km: "45,000 km", cost: "₩120,000", note: "엔진오일 교환, 타이어 위치 교환" },
@@ -9,6 +11,8 @@ const maintenanceData = [
 ];
 
 export default function MaintenancePage() {
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -16,11 +20,63 @@ export default function MaintenancePage() {
                     <h1 className="text-2xl font-bold text-foreground">정비기록</h1>
                     <p className="text-muted-foreground text-sm mt-1">차량 수리 및 점검 내역을 관리합니다.</p>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                >
                     <Plus className="h-4 w-4" />
                     정비 등록
                 </button>
             </div>
+
+            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="정비기록 등록">
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">날짜</label>
+                            <input type="date" required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">차량</label>
+                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                <option value="">선택</option>
+                                <option>쏘렌토 (195하4504)</option>
+                                <option>아반떼 (123가4567)</option>
+                                <option>카니발 (333루3333)</option>
+                                <option>그랜저 (999호9999)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">정비 유형</label>
+                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                <option value="">선택</option>
+                                <option>정기점검</option>
+                                <option>수리</option>
+                                <option>소모품</option>
+                                <option>기타</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">주행거리 (km)</label>
+                            <input type="number" required placeholder="45000" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">비용 (원)</label>
+                        <input type="number" required placeholder="120000" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">정비 내역</label>
+                        <textarea rows={3} placeholder="예: 엔진오일 교환, 타이어 위치 교환" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"></textarea>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">등록하기</button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Alert Banner for Upcoming */}
             <div className="glass-card rounded-xl p-4 border border-orange-500/20 bg-orange-500/5 flex items-start gap-3">
