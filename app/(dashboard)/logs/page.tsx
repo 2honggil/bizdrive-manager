@@ -101,6 +101,17 @@ export default function VehicleLogs() {
                         <input type="text" placeholder="예: B3 - A12" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     </div>
 
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">주차 위치 사진 (선택)</label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">📸 모바일에서 카메라로 직접 촬영하거나 갤러리에서 선택할 수 있습니다</p>
+                    </div>
+
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">
                         <button
                             type="button"

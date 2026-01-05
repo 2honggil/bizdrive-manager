@@ -1,6 +1,8 @@
 "use client";
 
 import { Search, Plus, User, MoreVertical, Shield } from "lucide-react";
+import { useState } from "react";
+import Modal from "@/components/Modal";
 
 // Mock Data
 const users = [
@@ -11,6 +13,8 @@ const users = [
 ];
 
 export default function UserManagement() {
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -18,11 +22,45 @@ export default function UserManagement() {
                     <h1 className="text-2xl font-bold text-foreground">사용자관리</h1>
                     <p className="text-muted-foreground text-sm mt-1">사용자 계정 및 권한을 관리합니다.</p>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                >
                     <Plus className="h-4 w-4" />
                     사용자 초대
                 </button>
             </div>
+
+            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="사용자 초대">
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">이름</label>
+                        <input type="text" required placeholder="홍길동" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">이메일</label>
+                        <input type="email" required placeholder="user@example.com" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">부서</label>
+                            <input type="text" placeholder="영업팀" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">권한</label>
+                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                                <option value="">선택</option>
+                                <option value="user">일반 사용자</option>
+                                <option value="admin">관리자</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">초대하기</button>
+                    </div>
+                </form>
+            </Modal>
 
             <div className="glass-card rounded-xl overflow-hidden border border-border">
                 <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">

@@ -1,8 +1,12 @@
 "use client";
 
 import { Building, Save } from "lucide-react";
+import { useState } from "react";
+import Modal from "@/components/Modal";
 
 export default function CompanyManagement() {
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
     return (
         <div className="space-y-6 max-w-2xl">
             <div>
@@ -15,25 +19,53 @@ export default function CompanyManagement() {
                     <div className="h-16 w-16 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground border border-border">
                         <Building className="h-8 w-8" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <h2 className="text-lg font-bold text-foreground">망고슬래브</h2>
                         <p className="text-sm text-muted-foreground">엔터프라이즈 플랜 이용 중</p>
                     </div>
+                    <button
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                    >
+                        정보 수정
+                    </button>
                 </div>
 
-                <form className="space-y-4">
-                    <div className="space-y-2">
+                <div className="space-y-4">
+                    <div>
                         <label className="text-sm font-medium text-muted-foreground">회사명</label>
+                        <p className="text-foreground mt-1">망고슬래브</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-muted-foreground">사업자 등록번호</label>
+                            <p className="text-foreground mt-1">123-45-67890</p>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-muted-foreground">대표 전화</label>
+                            <p className="text-foreground mt-1">02-1234-5678</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-muted-foreground">주소</label>
+                        <p className="text-foreground mt-1">서울시 강남구 테헤란로...</p>
+                    </div>
+                </div>
+            </div>
+
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="회사 정보 수정">
+                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsEditModalOpen(false); }}>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">회사명</label>
                         <input
                             type="text"
                             defaultValue="망고슬래브"
                             className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                         />
                     </div>
-
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">사업자 등록번호</label>
+                            <label className="text-sm font-medium text-foreground">사업자 등록번호</label>
                             <input
                                 type="text"
                                 defaultValue="123-45-67890"
@@ -41,7 +73,7 @@ export default function CompanyManagement() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">대표 전화</label>
+                            <label className="text-sm font-medium text-foreground">대표 전화</label>
                             <input
                                 type="text"
                                 defaultValue="02-1234-5678"
@@ -49,24 +81,20 @@ export default function CompanyManagement() {
                             />
                         </div>
                     </div>
-
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-muted-foreground">주소</label>
+                        <label className="text-sm font-medium text-foreground">주소</label>
                         <input
                             type="text"
                             defaultValue="서울시 강남구 테헤란로..."
                             className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                         />
                     </div>
-
-                    <div className="pt-4 mt-6 border-t border-border flex justify-end">
-                        <button type="button" className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
-                            <Save className="h-4 w-4" />
-                            변경사항 저장
-                        </button>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">저장하기</button>
                     </div>
                 </form>
-            </div>
+            </Modal>
         </div>
     );
 }
