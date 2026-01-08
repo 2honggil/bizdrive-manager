@@ -1,12 +1,18 @@
 "use client";
 
 import { Bell, Search, Menu } from "lucide-react";
+import { useMobileMenu } from "@/context/MobileMenuContext";
 
 export default function Header() {
+    const { toggleMobileMenu } = useMobileMenu();
+
     return (
         <header className="sticky top-0 z-40 w-full h-16 border-b glass flex items-center justify-between px-6">
             {/* Mobile Menu Trigger (Hidden on Desktop) */}
-            <button className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground">
+            <button
+                onClick={toggleMobileMenu}
+                className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
+            >
                 <Menu className="w-6 h-6" />
             </button>
 

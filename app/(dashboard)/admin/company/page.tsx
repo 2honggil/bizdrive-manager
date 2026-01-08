@@ -1,17 +1,27 @@
 "use client";
 
-import { Building, Save } from "lucide-react";
+import { Building, Save, Plus } from "lucide-react";
 import { useState } from "react";
 import Modal from "@/components/Modal";
+import Link from "next/link";
 
 export default function CompanyManagement() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     return (
         <div className="space-y-6 max-w-2xl">
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">회사관리</h1>
-                <p className="text-muted-foreground text-sm mt-1">회사 기본 정보 및 정책을 설정합니다.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">회사관리</h1>
+                    <p className="text-muted-foreground text-sm mt-1">회사 기본 정보 및 정책을 설정합니다.</p>
+                </div>
+                <Link
+                    href="/admin/company/new"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                >
+                    <Plus className="h-4 w-4" />
+                    회사추가
+                </Link>
             </div>
 
             <div className="glass-card rounded-xl p-6 border border-border">

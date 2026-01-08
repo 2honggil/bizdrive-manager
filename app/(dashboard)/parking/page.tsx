@@ -4,7 +4,7 @@ import { MapPin, Camera, Navigation, Car, AlertCircle } from "lucide-react";
 
 const parkingZones = [
     {
-        name: "지하 1층 (B1)", spots: [
+        name: "본사 (파미어스몰)", spots: [
             { id: "A1", status: "occupied", car: "쏘렌토 (195하4504)", time: "10:30" },
             { id: "A2", status: "empty" },
             { id: "A3", status: "empty" },
@@ -12,7 +12,7 @@ const parkingZones = [
         ]
     },
     {
-        name: "지하 2층 (B2)", spots: [
+        name: "외부 주차장", spots: [
             { id: "B1", status: "empty" },
             { id: "B2", status: "occupied", car: "카니발 (333루3333)", time: "Yesterday" },
             { id: "B3", status: "empty" },
@@ -21,9 +21,9 @@ const parkingZones = [
 ];
 
 const lastParked = [
-    { car: "쏘렌토 (195하4504)", location: "B1 - A1", photo: true, time: "오늘 10:30", driver: "홍길동" },
-    { car: "아반떼 (123가4567)", location: "B1 - A4", photo: true, time: "오늘 09:00", driver: "이영희" },
-    { car: "카니발 (333루3333)", location: "B2 - B2", photo: false, time: "어제 18:00", driver: "김철수" },
+    { car: "쏘렌토 (195하4504)", location: "본사 - A1", photo: true, time: "오늘 10:30", driver: "홍길동" },
+    { car: "아반떼 (123가4567)", location: "본사 - A4", photo: true, time: "오늘 09:00", driver: "이영희" },
+    { car: "카니발 (333루3333)", location: "외부 - B2", photo: false, time: "어제 18:00", driver: "김철수" },
     { car: "그랜저 (999호9999)", location: "출차 중", photo: false, time: "-", driver: "최지우" },
 ];
 
@@ -42,7 +42,7 @@ export default function ParkingPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Visual Map Placeholder */}
+                {/* Dynamic Visual Map */}
                 <div className="lg:col-span-2 space-y-6">
                     {parkingZones.map((zone) => (
                         <div key={zone.name} className="glass-card rounded-xl p-5 border border-border">
@@ -51,26 +51,41 @@ export default function ParkingPage() {
                                 {zone.name}
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                {zone.spots.map((spot) => (
-                                    <div
-                                        key={spot.id}
-                                        className={`relative aspect-square rounded-xl border flex flex-col items-center justify-center p-2 text-center transition-all ${spot.status === 'occupied'
-                                            ? 'bg-primary/10 border-primary/30'
-                                            : 'bg-secondary/30 border-border border-dashed'
-                                            }`}
-                                    >
-                                        <span className="absolute top-2 left-3 text-xs font-bold text-muted-foreground">{spot.id}</span>
-                                        {spot.status === 'occupied' ? (
-                                            <>
-                                                <Car className="h-8 w-8 text-primary/80 mb-2" />
-                                                <p className="text-xs font-bold text-primary-foreground/90 truncate w-full">{spot.car?.split(' ')[0]}</p>
-                                                <p className="text-[10px] text-muted-foreground truncate w-full">{spot.car?.split(' ')[1]}</p>
-                                            </>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">빈 자리</span>
-                                        )}
-                                    </div>
-                                ))}
+                                {zone.spots.map((spot) => {
+                                    // Find if any vehicle is parked specifically at this zone and spot ID
+                                    // Format in lastParked: "ZoneName - SpotID"
+                                    const zonePrefix = zone.name.split(" ")[0]; // "본사" or "외부"
+                                    const targetLoc = `${zonePrefix} - ${spot.id}`;
+                                    const occupant = lastParked.find(p => p.location === targetLoc);
+
+                                    if (!occupant) return null;
+
+                                    return (
+                                        <div
+                                            key={spot.id}
+                                            className={`relative aspect-square rounded-xl border flex flex-col items-center justify-center p-2 text-center transition-all ${occupant
+                                                ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5'
+                                                : 'bg-secondary/30 border-border border-dashed'
+                                                }`}
+                                        >
+                                            <span className="absolute top-2 left-3 text-[10px] font-black tracking-tighter text-muted-foreground/60">
+                                                {occupant ? occupant.location : spot.id}
+                                            </span>
+                                            {occupant ? (
+                                                <>
+                                                    <Car className="h-8 w-8 text-primary mb-2 drop-shadow-sm" />
+                                                    <p className="text-[10px] font-black text-foreground truncate w-full">{occupant.car.split(' ')[0]}</p>
+                                                    <p className="text-[8px] text-muted-foreground truncate w-full tracking-tighter">{occupant.car.split(' ')[1]}</p>
+                                                    <div className="mt-1 px-1.5 py-0.5 bg-primary/20 rounded text-[8px] font-bold text-primary">
+                                                        {occupant.time}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] font-medium text-muted-foreground/40">EMPTY</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

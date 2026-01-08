@@ -1,11 +1,11 @@
 "use client";
 
-import { Search, Plus, User, MoreVertical, Shield } from "lucide-react";
+import { Search, Plus, User, MoreVertical, Shield, Edit, Trash2 } from "lucide-react";
 import { useState } from "react";
 import Modal from "@/components/Modal";
 
 // Mock Data
-const users = [
+const initialUsers = [
     { id: 1, name: "홍길동", email: "hongilee@mangoslab.com", role: "admin", department: "경영지원", status: "active" },
     { id: 2, name: "김철수", email: "user@example.com", role: "user", department: "영업팀", status: "active" },
     { id: 3, name: "이영희", email: "yhlee@example.com", role: "user", department: "개발팀", status: "active" },
@@ -14,9 +14,32 @@ const users = [
 
 export default function UserManagement() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [users, setUsers] = useState(initialUsers);
+    const [selectedUser, setSelectedUser] = useState<any>(null);
+    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+    const handleEdit = (user: any) => {
+        setSelectedUser(user);
+        setIsEditModalOpen(true);
+        setOpenMenuId(null);
+    };
+
+    const handleDelete = (userId: number) => {
+        if (confirm("정말로 이 사용자를 삭제하시겠습니까?")) {
+            setUsers(users.filter(u => u.id !== userId));
+        }
+        setOpenMenuId(null);
+    };
+
+    const handleSaveUser = (e: React.FormEvent) => {
+        e.preventDefault();
+        setUsers(users.map(u => u.id === selectedUser.id ? selectedUser : u));
+        setIsEditModalOpen(false);
+    };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" onClick={() => setOpenMenuId(null)}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">사용자관리</h1>
@@ -31,6 +54,7 @@ export default function UserManagement() {
                 </button>
             </div>
 
+            {/* Invite Modal */}
             <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="사용자 초대">
                 <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
                     <div className="space-y-2">
@@ -40,6 +64,10 @@ export default function UserManagement() {
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">이메일</label>
                         <input type="email" required placeholder="user@example.com" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">비밀번호</label>
+                        <input type="password" required placeholder="********" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -61,6 +89,73 @@ export default function UserManagement() {
                     </div>
                 </form>
             </Modal>
+
+            {/* Edit User Modal */}
+            {selectedUser && (
+                <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="사용자 정보 수정">
+                    <form className="space-y-4" onSubmit={handleSaveUser}>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">이름</label>
+                            <input
+                                type="text"
+                                required
+                                value={selectedUser.name}
+                                onChange={(e) => setSelectedUser({ ...selectedUser, name: e.target.value })}
+                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">이메일</label>
+                            <input
+                                type="email"
+                                required
+                                value={selectedUser.email}
+                                onChange={(e) => setSelectedUser({ ...selectedUser, email: e.target.value })}
+                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">부서</label>
+                                <input
+                                    type="text"
+                                    value={selectedUser.department}
+                                    onChange={(e) => setSelectedUser({ ...selectedUser, department: e.target.value })}
+                                    className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">권한</label>
+                                <select
+                                    required
+                                    value={selectedUser.role}
+                                    onChange={(e) => setSelectedUser({ ...selectedUser, role: e.target.value })}
+                                    className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                                >
+                                    <option value="user">일반 사용자</option>
+                                    <option value="admin">관리자</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">상태</label>
+                            <select
+                                required
+                                value={selectedUser.status}
+                                onChange={(e) => setSelectedUser({ ...selectedUser, status: e.target.value })}
+                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            >
+                                <option value="active">활성</option>
+                                <option value="suspended">정지</option>
+                            </select>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                            <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                            <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">저장하기</button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
 
             <div className="glass-card rounded-xl overflow-hidden border border-border">
                 <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
@@ -116,10 +211,36 @@ export default function UserManagement() {
                                             {u.status === 'active' ? '활성' : '정지'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button className="p-2 hover:bg-secondary rounded text-muted-foreground hover:text-foreground transition-colors">
+                                    <td className="px-6 py-4 text-right relative">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOpenMenuId(openMenuId === u.id ? null : u.id);
+                                            }}
+                                            className="p-2 hover:bg-secondary rounded text-muted-foreground hover:text-foreground transition-colors"
+                                        >
                                             <MoreVertical className="h-4 w-4" />
                                         </button>
+
+                                        {/* Dropdown Menu */}
+                                        {openMenuId === u.id && (
+                                            <div className="absolute right-8 top-8 w-32 bg-card border border-border rounded-lg shadow-lg z-10 overflow-hidden">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleEdit(u); }}
+                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-secondary transition-colors flex items-center gap-2"
+                                                >
+                                                    <Edit className="h-3.5 w-3.5" />
+                                                    수정
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(u.id); }}
+                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-500/10 text-red-500 transition-colors flex items-center gap-2"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    삭제
+                                                </button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

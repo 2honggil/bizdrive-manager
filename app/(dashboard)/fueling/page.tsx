@@ -12,7 +12,45 @@ const fuelMockData = [
 ];
 
 export default function FuelTokensPage() {
+    const [fuelData, setFuelData] = useState(fuelMockData);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // Form state
+    const [formData, setFormData] = useState({
+        date: new Date().toISOString().split('T')[0],
+        car: "쏘렌토 (195하4504)",
+        type: "주유",
+        amount: "",
+        location: "",
+        driver: "홍길동"
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        const newRecord = {
+            id: fuelData.length + 1,
+            date: formData.date.replace(/-/g, '.'),
+            car: formData.car,
+            type: formData.type,
+            amount: Number(formData.amount).toLocaleString(),
+            location: formData.location || "기타 장소",
+            driver: formData.driver
+        };
+
+        setFuelData([newRecord, ...fuelData]);
+        setIsAddModalOpen(false);
+
+        // Reset form
+        setFormData({
+            date: new Date().toISOString().split('T')[0],
+            car: "쏘렌토 (195하4504)",
+            type: "주유",
+            amount: "",
+            location: "",
+            driver: "홍길동"
+        });
+    };
 
     return (
         <div className="space-y-6">
@@ -37,15 +75,26 @@ export default function FuelTokensPage() {
             </div>
 
             <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="지출 등록하기">
-                <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
+                <form className="space-y-4" onSubmit={handleSubmit}>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">날짜</label>
-                            <input type="date" required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            <input
+                                type="date"
+                                required
+                                value={formData.date}
+                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">차량</label>
-                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                            <select
+                                required
+                                value={formData.car}
+                                onChange={(e) => setFormData({ ...formData, car: e.target.value })}
+                                className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            >
                                 <option value="">선택</option>
                                 <option>쏘렌토 (195하4504)</option>
                                 <option>아반떼 (123가4567)</option>
@@ -57,7 +106,12 @@ export default function FuelTokensPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">지출 유형</label>
-                            <select required className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+                            <select
+                                required
+                                value={formData.type}
+                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            >
                                 <option value="">선택</option>
                                 <option>주유</option>
                                 <option>통행료</option>
@@ -67,12 +121,25 @@ export default function FuelTokensPage() {
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">금액 (원)</label>
-                            <input type="number" required placeholder="55000" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            <input
+                                type="number"
+                                required
+                                value={formData.amount}
+                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                placeholder="55000"
+                                className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground">위치/상세</label>
-                        <input type="text" placeholder="예: 만남의광장 주유소" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        <input
+                            type="text"
+                            value={formData.location}
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            placeholder="예: 만남의광장 주유소"
+                            className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">
                         <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
@@ -145,7 +212,7 @@ export default function FuelTokensPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {fuelMockData.map((item) => (
+                            {fuelData.map((item) => (
                                 <tr key={item.id} className="hover:bg-secondary/30 transition-colors">
                                     <td className="px-6 py-4 text-muted-foreground">{item.date}</td>
                                     <td className="px-6 py-4">
