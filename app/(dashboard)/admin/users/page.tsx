@@ -6,10 +6,23 @@ import Modal from "@/components/Modal";
 
 // Mock Data
 const initialUsers = [
-    { id: 1, name: "홍길동", email: "hongilee@mangoslab.com", role: "admin", department: "경영지원", status: "active" },
-    { id: 2, name: "김철수", email: "user@example.com", role: "user", department: "영업팀", status: "active" },
-    { id: 3, name: "이영희", email: "yhlee@example.com", role: "user", department: "개발팀", status: "active" },
-    { id: 4, name: "박민수", email: "mspark@example.com", role: "user", department: "마케팅", status: "suspended" },
+    { id: 1, name: "이홍길", email: "hongilee@mangoslab.com", role: "admin", department: "망고슬래브", status: "active" },
+    { id: 2, name: "김태연", email: "kim19707@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 3, name: "김제봉", email: "chenwoo@chenwoo.co.kr", role: "admin", department: "천우주식회사", status: "active" },
+    { id: 4, name: "김진아", email: "sweet@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 5, name: "이상봉", email: "lsb0078@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 6, name: "김예건", email: "wlfka102@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 7, name: "박진호", email: "zlzmei123@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 8, name: "김영재", email: "yeongjae.kim@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 9, name: "박종훈", email: "hoon023@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 10, name: "김승현", email: "seunghyun@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 11, name: "신동호", email: "taylor.shin@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 12, name: "이수민", email: "soom@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 13, name: "김희정", email: "hjkim@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 14, name: "한지훈", email: "ricky@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 15, name: "박용식", email: "petepark@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 16, name: "정용수", email: "index50@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
+    { id: 17, name: "윤하늘", email: "luckysky2030@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
 ];
 
 export default function UserManagement() {
@@ -19,6 +32,8 @@ export default function UserManagement() {
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
+    const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+
     const handleEdit = (user: any) => {
         setSelectedUser(user);
         setIsEditModalOpen(true);
@@ -26,9 +41,8 @@ export default function UserManagement() {
     };
 
     const handleDelete = (userId: number) => {
-        if (confirm("정말로 이 사용자를 삭제하시겠습니까?")) {
-            setUsers(users.filter(u => u.id !== userId));
-        }
+        setUsers(users.filter(u => u.id !== userId));
+        setDeletingUserId(null);
         setOpenMenuId(null);
     };
 
@@ -172,11 +186,11 @@ export default function UserManagement() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs font-medium">
                             <tr>
-                                <th className="px-6 py-4">사용자</th>
-                                <th className="px-6 py-4">부서</th>
-                                <th className="px-6 py-4">권한</th>
-                                <th className="px-6 py-4">상태</th>
-                                <th className="px-6 py-4 text-right">관리</th>
+                                <th className="px-6 py-4 min-w-[200px]">사용자</th>
+                                <th className="px-6 py-4 min-w-[120px] whitespace-nowrap">부서</th>
+                                <th className="px-6 py-4 min-w-[100px] whitespace-nowrap">권한</th>
+                                <th className="px-6 py-4 min-w-[80px] whitespace-nowrap">상태</th>
+                                <th className="px-6 py-4 text-right min-w-[80px]">관리</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -193,7 +207,7 @@ export default function UserManagement() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-muted-foreground">{u.department}</td>
+                                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{u.department}</td>
                                     <td className="px-6 py-4">
                                         {u.role === 'admin' ? (
                                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
@@ -225,20 +239,42 @@ export default function UserManagement() {
                                         {/* Dropdown Menu */}
                                         {openMenuId === u.id && (
                                             <div className="absolute right-8 top-8 w-32 bg-card border border-border rounded-lg shadow-lg z-10 overflow-hidden">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleEdit(u); }}
-                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-secondary transition-colors flex items-center gap-2"
-                                                >
-                                                    <Edit className="h-3.5 w-3.5" />
-                                                    수정
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDelete(u.id); }}
-                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-500/10 text-red-500 transition-colors flex items-center gap-2"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    삭제
-                                                </button>
+                                                {deletingUserId === u.id ? (
+                                                    <div className="p-2 flex flex-col gap-2 bg-secondary/50">
+                                                        <span className="text-[10px] text-red-500 font-bold px-1 text-center">삭제하시겠습니까?</span>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleDelete(u.id); }}
+                                                                className="flex-1 py-1 bg-red-500 text-white text-[10px] rounded hover:bg-red-600 transition-colors"
+                                                            >
+                                                                확인
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setDeletingUserId(null); }}
+                                                                className="flex-1 py-1 bg-background text-foreground text-[10px] rounded hover:bg-secondary transition-colors"
+                                                            >
+                                                                취소
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleEdit(u); }}
+                                                            className="w-full text-left px-4 py-2 text-sm hover:bg-secondary transition-colors flex items-center gap-2"
+                                                        >
+                                                            <Edit className="h-3.5 w-3.5" />
+                                                            수정
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setDeletingUserId(u.id); }}
+                                                            className="w-full text-left px-4 py-2 text-sm hover:bg-red-500/10 text-red-500 transition-colors flex items-center gap-2"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            삭제
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                     </td>

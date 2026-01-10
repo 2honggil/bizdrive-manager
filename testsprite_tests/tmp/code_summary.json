@@ -1,0 +1,14 @@
+{
+  "project_name": "bizdrive-manager",
+  "tech_stacks": ["Next.js", "React", "TypeScript", "Tailwind CSS", "Lucide React"],
+  "features": [
+    "Vehicle Driving Logs (Add, Edit, Delete, Filter, Export)",
+    "Vehicle Reservations (Calendar view)",
+    "Fueling and Maintenance Tracking",
+    "Parking Spot Management",
+    "Admin Dashboard with Statistics",
+    "User Management",
+    "Mobile Responsive Design"
+  ],
+  "testing_framework": "Playwright (Testsprite handled)"
+}

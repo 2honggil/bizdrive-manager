@@ -1,15 +1,16 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState } from "react";
-import { Search, Filter, Download, Plus, MapPin, Camera, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown } from "lucide-react";
+import { Search, Filter, Download, Plus, MapPin, Camera, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, MoreHorizontal, Edit, Trash } from "lucide-react";
 import Modal from "@/components/Modal";
 
-const mockLogs = [
-    { id: 1, date: "2024.01.04", car: "쏘렌토 (195하4504)", driver: "홍길동", purpose: "외근 (고객 미팅)", route: "본사 -> 강남 파이낸스센터", startKm: 45200, endKm: 45235, parking: "본사 (파미어스몰)", hasPhoto: true },
-    { id: 2, date: "2024.01.04", car: "카니발 (333루3333)", driver: "김철수", purpose: "물품 구매", route: "본사 -> 코스트코 양재", startKm: 12050, endKm: 12072, parking: "외부 주차장", hasPhoto: false },
-    { id: 3, date: "2024.01.03", car: "아반떼 (123가4567)", driver: "이영희", purpose: "출장 (대전 지사)", route: "본사 -> 대전역", startKm: 8900, endKm: 9050, parking: "대전지사 주차장", hasPhoto: true },
-    { id: 4, date: "2024.01.03", car: "쏘렌토 (195하4504)", driver: "박민수", purpose: "직원 픽업", route: "본사 -> 수서역", startKm: 45180, endKm: 45200, parking: "본사 (파미어스몰)", hasPhoto: false },
-    { id: 5, date: "2024.01.02", car: "그랜저 (999호9999)", driver: "최지우", purpose: "임원 수행", route: "자택 -> 본사", startKm: 5500, endKm: 5520, parking: "본사 전용", hasPhoto: true },
+import { mockLogs, frequentDestinations } from "@/lib/mockData";
+
+// Define accessible vehicles centrally for this view
+const vehicles = [
+    { id: 1, name: "쏘렌토 (195하4504)" }
 ];
 
 export default function VehicleLogs() {
@@ -17,17 +18,41 @@ export default function VehicleLogs() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+
+    // Filtering State
+    const [selectedYear, setSelectedYear] = useState("2026");
+    const [selectedVehicle, setSelectedVehicle] = useState("전체");
+
+    // Derived Data
+    const uniqueYears = Array.from(new Set(logs.map(log => log.date.split('.')[0]))).sort((a, b) => b.localeCompare(a));
+    const uniqueVehicles = Array.from(new Set(logs.map(log => log.car))).sort();
+
+    const filteredLogs = logs.filter(log => {
+        const logYear = log.date.split('.')[0];
+        const matchYear = selectedYear === "전체" || logYear === selectedYear;
+        const matchVehicle = selectedVehicle === "전체" || log.car === selectedVehicle;
+        return matchYear && matchVehicle;
+    });
+
+    // Initial mileage for the default vehicle
+    const initialCar = vehicles.length === 1 ? vehicles[0].name : "";
+    const lastLogForInitialCar = initialCar ? logs.find(l => l.car === initialCar) : null;
+    const initialKm = lastLogForInitialCar ? lastLogForInitialCar.endKm : 45200;
 
     // Form state
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
-        car: "",
+        car: initialCar,
         driver: "홍길동",
         purpose: "",
-        route: "",
-        startKm: "",
-        endKm: "",
-        parking: "",
+        origin: "본사",
+        destination: "",
+        startKm: initialCar ? initialKm.toString() : "",
+        endKm: initialCar ? initialKm.toString() : "",
+        parkingBuilding: "본사 (파미어스몰)",
+        parkingDetail: "",
     });
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
 
@@ -35,7 +60,7 @@ export default function VehicleLogs() {
         setFormData(prev => {
             // Use 45200 as a default base for startKm if empty, 45235 for endKm
             const baseValue = field === 'startKm' ? 45200 : 45235;
-            const currentVal = prev[field] === "" ? baseValue : parseInt(prev[field] as string);
+            const currentVal = prev[field as keyof typeof prev] === "" ? baseValue : parseInt(prev[field as keyof typeof prev] as string);
             let newVal = currentVal + amount;
 
             // Enforce endKm >= startKm if startKm is set
@@ -73,35 +98,61 @@ export default function VehicleLogs() {
             return;
         }
 
-        const newLog = {
-            id: logs.length + 1,
-            date: formData.date.replace(/-/g, '.'),
-            car: formData.car || "쏘렌토 (195하4504)", // Default if not selected
-            driver: formData.driver,
-            purpose: formData.purpose,
-            route: formData.route || "본사 -> 목적지",
-            startKm: startKm,
-            endKm: endKm,
-            parking: formData.parking,
-            hasPhoto: !!capturedPhoto,
-            photoUrl: capturedPhoto
-        };
+        if (editingId !== null) {
+            // Update existing log
+            setLogs(prevLogs => prevLogs.map(log =>
+                log.id === editingId
+                    ? {
+                        ...log,
+                        date: formData.date.replace(/-/g, '.'),
+                        car: formData.car || vehicles[0].name,
+                        driver: formData.driver,
+                        purpose: formData.purpose,
+                        route: `${formData.origin} -> ${formData.destination}`,
+                        startKm: startKm,
+                        endKm: endKm,
+                        parking: formData.parkingDetail ? `${formData.parkingBuilding} (${formData.parkingDetail})` : formData.parkingBuilding,
+                        hasPhoto: !!capturedPhoto,
+                        photoUrl: capturedPhoto
+                    }
+                    : log
+            ));
+        } else {
+            // Add new log
+            const newLog = {
+                id: Date.now(), // More robust ID for client-side mocks
+                date: formData.date.replace(/-/g, '.'),
+                car: formData.car || vehicles[0].name,
+                driver: formData.driver,
+                purpose: formData.purpose,
+                route: `${formData.origin} -> ${formData.destination}`,
+                startKm: startKm,
+                endKm: endKm,
+                parking: formData.parkingDetail ? `${formData.parkingBuilding} (${formData.parkingDetail})` : formData.parkingBuilding,
+                hasPhoto: !!capturedPhoto,
+                photoUrl: capturedPhoto
+            };
+            setLogs([newLog, ...logs]);
+        }
 
-        setLogs([newLog, ...logs]);
         setIsAddModalOpen(false);
 
-        // Reset form
+        // Reset form to latest state
+        const lastKm = endKm;
         setFormData({
             date: new Date().toISOString().split('T')[0],
-            car: "",
+            car: vehicles.length === 1 ? vehicles[0].name : "",
             driver: "홍길동",
             purpose: "",
-            route: "",
-            startKm: "",
-            endKm: "",
-            parking: "",
+            origin: "본사",
+            destination: "",
+            startKm: lastKm.toString(),
+            endKm: lastKm.toString(),
+            parkingBuilding: "본사 (파미어스몰)",
+            parkingDetail: "",
         });
         setCapturedPhoto(null);
+        setEditingId(null);
     };
 
     const viewPhoto = (url: string | undefined) => {
@@ -111,25 +162,115 @@ export default function VehicleLogs() {
         }
     };
 
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    const handleDelete = (id: number) => {
+        setLogs(logs.filter(log => log.id !== id));
+        setDeletingId(null);
+        setActiveMenuId(null);
+    };
+
+    const handleEdit = (log: any) => {
+        setEditingId(log.id);
+        setFormData({
+            date: log.date.replace(/\./g, '-'),
+            car: log.car,
+            driver: log.driver,
+            purpose: log.purpose,
+            origin: log.route.split(' -> ')[0] || "본사",
+            destination: log.route.split(' -> ')[1] || "",
+            startKm: log.startKm.toString(),
+            endKm: log.endKm.toString(),
+            parkingBuilding: log.parking.includes(' (') ? log.parking.split(' (')[0] : log.parking,
+            parkingDetail: log.parking.includes(' (') ? log.parking.split(' (')[1].replace(')', '') : "",
+        });
+        setCapturedPhoto(log.photoUrl || null);
+        setIsAddModalOpen(true);
+        setActiveMenuId(null);
+    };
+
+    const handleAddClick = () => {
+        setEditingId(null);
+        const initialCar = vehicles.length === 1 ? vehicles[0].name : "";
+        const lastLogForInitialCar = initialCar ? logs.find(l => l.car === initialCar) : null;
+        const initialKm = lastLogForInitialCar ? lastLogForInitialCar.endKm : 45200;
+
+        setFormData({
+            date: new Date().toISOString().split('T')[0],
+            car: initialCar,
+            driver: "홍길동",
+            purpose: "",
+            origin: "본사",
+            destination: "",
+            startKm: initialKm.toString(),
+            endKm: initialKm.toString(),
+            parkingBuilding: "본사 (파미어스몰)",
+            parkingDetail: "",
+        });
+        setCapturedPhoto(null);
+        setIsAddModalOpen(true);
+    };
+
+    const handleExportCSV = async () => {
+        const headers = ["날짜", "차량", "운전자", "목적", "경로", "출발거리(km)", "도착거리(km)", "주행거리(km)", "주차위치"];
+
+        const rows = filteredLogs.map(log => [
+            log.date,
+            log.car,
+            log.driver,
+            log.purpose,
+            log.route,
+            log.startKm.toString(),
+            log.endKm.toString(),
+            (log.endKm - log.startKm).toString(),
+            log.parking
+        ]);
+
+        // Create CSV content
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+        // Use File System Access API for location selection (modern browsers)
+        if ('showSaveFilePicker' in window) {
+            try {
+                const handle = await (window as any).showSaveFilePicker({
+                    suggestedName: `차량운행기록_${new Date().toISOString().split('T')[0]}.csv`,
+                    types: [{
+                        description: 'CSV Files',
+                        accept: { 'text/csv': ['.csv'] }
+                    }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } catch (err) {
+                // User cancelled or error occurred
+                console.log('다운로드 취소됨');
+            }
+        } else {
+            // Fallback for older browsers
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `차량운행기록_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">차량운행기록</h1>
                     <p className="text-muted-foreground text-sm mt-1">모든 차량의 운행 상세 내역을 관리합니다.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">
-                        <Download className="h-4 w-4" />
-                        엑셀 다운로드
-                    </button>
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
-                    >
-                        <Plus className="h-4 w-4" />
-                        기록 추가
-                    </button>
                 </div>
             </div>
 
@@ -166,29 +307,42 @@ export default function VehicleLogs() {
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">차량</label>
-                            <select
-                                required
-                                value={formData.car}
-                                onChange={e => {
-                                    const selectedCar = e.target.value;
-                                    // Find last mileage for this car
-                                    const lastLog = logs.find(l => l.car === selectedCar);
-                                    const lastKm = lastLog ? lastLog.endKm : 45200; // Default if no record
-                                    setFormData({
-                                        ...formData,
-                                        car: selectedCar,
-                                        startKm: lastKm.toString(),
-                                        endKm: lastKm.toString() // Initialize end with start
-                                    });
-                                }}
-                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                            >
-                                <option value="">선택하세요</option>
-                                <option>쏘렌토 (195하4504)</option>
-                                <option>아반떼 (123가4567)</option>
-                                <option>카니발 (333루3333)</option>
-                                <option>그랜저 (999호9999)</option>
-                            </select>
+                            {vehicles.length === 1 ? (
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={vehicles[0].name}
+                                        className="w-full px-4 py-2 bg-secondary/30 border border-input rounded-lg text-sm text-foreground focus:outline-none cursor-default"
+                                    />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-secondary text-muted-foreground rounded tracking-tighter">단일 차량</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <select
+                                    required
+                                    value={formData.car}
+                                    onChange={e => {
+                                        const selectedCar = e.target.value;
+                                        // Find last mileage for this car
+                                        const lastLog = logs.find(l => l.car === selectedCar);
+                                        const lastKm = lastLog ? lastLog.endKm : 45200; // Default if no record
+                                        setFormData({
+                                            ...formData,
+                                            car: selectedCar,
+                                            startKm: lastKm.toString(),
+                                            endKm: lastKm.toString() // Initialize end with start
+                                        });
+                                    }}
+                                    className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                                >
+                                    <option value="">선택하세요</option>
+                                    {vehicles.map(v => (
+                                        <option key={v.id} value={v.name}>{v.name}</option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                     </div>
 
@@ -206,38 +360,51 @@ export default function VehicleLogs() {
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">목적</label>
-                            <input
-                                type="text"
+                            <select
                                 required
                                 value={formData.purpose}
                                 onChange={e => setFormData({ ...formData, purpose: e.target.value })}
-                                placeholder="예: 외근, 출장"
-                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                            />
+                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none"
+                            >
+                                <option value="">선택하세요</option>
+                                <option value="외근">외근</option>
+                                <option value="출장">출장</option>
+                                <option value="기타">기타</option>
+                            </select>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                        <div className="space-y-2 text-left">
                             <label className="text-sm font-medium text-foreground">출발지</label>
                             <input
                                 type="text"
+                                list="spots-list"
                                 required
+                                value={formData.origin}
+                                onChange={e => setFormData({ ...formData, origin: e.target.value })}
                                 placeholder="예: 본사"
                                 className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                             />
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 text-left">
                             <label className="text-sm font-medium text-foreground">목적지</label>
                             <input
                                 type="text"
+                                list="spots-list"
                                 required
-                                value={formData.route}
-                                onChange={e => setFormData({ ...formData, route: e.target.value })}
+                                value={formData.destination}
+                                onChange={e => setFormData({ ...formData, destination: e.target.value })}
                                 placeholder="예: 강남역"
                                 className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                             />
                         </div>
+                        <datalist id="spots-list">
+                            <option value="본사" />
+                            {frequentDestinations.map(spot => (
+                                <option key={spot.id} value={spot.name} />
+                            ))}
+                        </datalist>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -300,20 +467,32 @@ export default function VehicleLogs() {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">주차 위치</label>
-                        <input
-                            type="text"
-                            list="parking-locations"
-                            value={formData.parking}
-                            onChange={e => setFormData({ ...formData, parking: e.target.value })}
-                            placeholder="본사 (파미어스몰) 또는 외부 장소 입력"
-                            className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                        />
-                        <datalist id="parking-locations">
-                            <option value="본사 (파미어스몰)" />
-                            <option value="외부 주차장" />
-                        </datalist>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground text-left block">주차 건물</label>
+                            <input
+                                type="text"
+                                list="parking-buildings"
+                                value={formData.parkingBuilding}
+                                onChange={e => setFormData({ ...formData, parkingBuilding: e.target.value })}
+                                placeholder="예: 본사 (파미어스몰)"
+                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
+                            <datalist id="parking-buildings">
+                                <option value="본사 (파미어스몰)" />
+                                <option value="외부 주차장" />
+                            </datalist>
+                        </div>
+                        <div className="space-y-2 text-left">
+                            <label className="text-sm font-medium text-foreground block">상세 위치</label>
+                            <input
+                                type="text"
+                                value={formData.parkingDetail}
+                                onChange={e => setFormData({ ...formData, parkingDetail: e.target.value })}
+                                placeholder="예: B2 45"
+                                className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-3 p-4 bg-secondary/30 rounded-xl border border-dashed border-border">
@@ -382,24 +561,61 @@ export default function VehicleLogs() {
                 </form>
             </Modal>
 
-            {/* Filters */}
-            <div className="glass-card rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative flex-1 w-full md:max-w-md">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <input
-                        type="text"
-                        placeholder="운전자, 차량번호, 목적 검색..."
-                        className="w-full pl-9 pr-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                    />
+            {/* Filters & Actions */}
+            <div className="glass-card rounded-xl p-6 mb-6">
+                <div className="mb-4">
+                    <h3 className="text-lg font-bold text-foreground">차량운행기록</h3>
+                    <p className="text-sm text-muted-foreground">선택한 연도의 운행 기록입니다.</p>
                 </div>
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-muted-foreground">
-                        <Filter className="h-4 w-4" />
-                        <span>2024.01</span>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                        {/* Year Dropdown */}
+                        <div className="relative">
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                                className="appearance-none pl-4 pr-10 py-2.5 bg-secondary/50 border border-input rounded-lg text-sm font-medium text-foreground focus:outline-none focus:border-primary transition-colors min-w-[120px]"
+                            >
+                                <option value="전체">전체 연도</option>
+                                {uniqueYears.map(year => (
+                                    <option key={year} value={year}>{year}년</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        </div>
+
+                        {/* Vehicle Dropdown */}
+                        <div className="relative">
+                            <select
+                                value={selectedVehicle}
+                                onChange={(e) => setSelectedVehicle(e.target.value)}
+                                className="appearance-none pl-4 pr-10 py-2.5 bg-secondary/50 border border-input rounded-lg text-sm font-medium text-foreground focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+                            >
+                                <option value="전체">전체 차량</option>
+                                {uniqueVehicles.map(car => (
+                                    <option key={car} value={car}>{car}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        </div>
                     </div>
-                    <button className="p-2 bg-secondary/50 border border-input rounded-lg text-muted-foreground hover:text-foreground transition-colors">
-                        <Filter className="h-4 w-4" />
-                    </button>
+
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border whitespace-nowrap"
+                        >
+                            <Download className="h-4 w-4" />
+                            내보내기
+                        </button>
+                        <button
+                            onClick={handleAddClick}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20 whitespace-nowrap"
+                        >
+                            <Plus className="h-4 w-4" />
+                            운행기록추가
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -409,20 +625,21 @@ export default function VehicleLogs() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs font-medium">
                             <tr>
-                                <th className="px-6 py-4">날짜</th>
-                                <th className="px-6 py-4">차량</th>
-                                <th className="px-6 py-4">운전자</th>
-                                <th className="px-6 py-4">목적 및 경로</th>
-                                <th className="px-6 py-4 text-right">주행거리</th>
-                                <th className="px-6 py-4">주차위치</th>
+                                <th className="px-6 py-4 min-w-[120px] whitespace-nowrap">날짜</th>
+                                <th className="px-6 py-4 min-w-[150px]">차량</th>
+                                <th className="px-6 py-4 min-w-[100px] whitespace-nowrap">운전자</th>
+                                <th className="px-6 py-4 min-w-[250px]">목적 및 경로</th>
+                                <th className="px-6 py-4 text-right min-w-[120px] whitespace-nowrap">주행거리</th>
+                                <th className="px-6 py-4 min-w-[150px] whitespace-nowrap">주차위치</th>
+                                <th className="px-6 py-4 w-10"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {logs.map((log) => (
+                            {filteredLogs.map((log) => (
                                 <tr key={log.id} className="hover:bg-secondary/30 transition-colors">
-                                    <td className="px-6 py-4 text-muted-foreground">{log.date}</td>
+                                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{log.date}</td>
                                     <td className="px-6 py-4 font-medium text-foreground">{log.car}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
                                             <div className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
                                                 {log.driver[0]}
@@ -436,16 +653,18 @@ export default function VehicleLogs() {
                                             <div className="text-xs text-muted-foreground mt-0.5">{log.route}</div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-4 text-right whitespace-nowrap">
                                         <div className="text-foreground">{log.endKm - log.startKm} km</div>
                                         <div className="text-xs text-muted-foreground">누적 {log.endKm.toLocaleString()}</div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-secondary border border-border text-xs text-muted-foreground">
-                                                <MapPin className="h-3 w-3" />
-                                                {log.parking}
-                                            </div>
+                                            <Link href="/parking">
+                                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-secondary border border-border text-xs text-muted-foreground hover:bg-secondary/80 hover:text-foreground cursor-pointer transition-colors">
+                                                    <MapPin className="h-3 w-3" />
+                                                    {log.parking}
+                                                </div>
+                                            </Link>
                                             {log.hasPhoto && (
                                                 <Camera
                                                     className="h-4 w-4 text-primary hover:text-primary/80 cursor-pointer transition-colors"
@@ -455,13 +674,78 @@ export default function VehicleLogs() {
                                             )}
                                         </div>
                                     </td>
+                                    <td className="px-4 py-4 relative">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveMenuId(activeMenuId === log.id ? null : log.id);
+                                            }}
+                                            className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground transition-colors"
+                                        >
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </button>
+
+                                        {activeMenuId === log.id && (
+                                            <div className="absolute right-4 top-10 w-32 bg-card border border-border rounded-lg shadow-xl z-20 overflow-hidden flex flex-col">
+                                                {deletingId === log.id ? (
+                                                    <div className="p-2 flex flex-col gap-2">
+                                                        <span className="text-[10px] text-red-500 font-bold px-1">정말 삭제할까요?</span>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDelete(log.id);
+                                                                }}
+                                                                className="flex-1 py-1 bg-red-500 text-white text-[10px] rounded hover:bg-red-600 transition-colors"
+                                                            >
+                                                                삭제
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setDeletingId(null);
+                                                                }}
+                                                                className="flex-1 py-1 bg-secondary text-foreground text-[10px] rounded hover:bg-secondary/80 transition-colors"
+                                                            >
+                                                                취소
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEdit(log);
+                                                            }}
+                                                            className="px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors text-foreground flex items-center gap-2 border-b border-border/50"
+                                                        >
+                                                            <Edit className="h-3 w-3 text-primary" />
+                                                            수정
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeletingId(log.id);
+                                                            }}
+                                                            className="px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors text-red-500 flex items-center gap-2"
+                                                        >
+                                                            <Trash className="h-3 w-3" />
+                                                            삭제
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                        {/* Click outside listener could be added, but simple toggle sufficient for now */}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
                 <div className="bg-secondary/30 px-6 py-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                    <span>총 {logs.length}건의 기록이 있습니다.</span>
+                    <span>총 {filteredLogs.length}건의 기록이 있습니다. (전체 {logs.length}건)</span>
                     <div className="flex gap-2">
                         <button className="px-3 py-1 bg-secondary rounded hover:bg-secondary/80 text-muted-foreground transition-colors">이전</button>
                         <button className="px-3 py-1 bg-secondary rounded hover:bg-secondary/80 text-muted-foreground transition-colors">다음</button>

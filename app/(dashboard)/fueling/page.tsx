@@ -1,19 +1,47 @@
 "use client";
 
-import { Fuel, DollarSign, Download, Plus, Search, Filter } from "lucide-react";
+
+import { Fuel, DollarSign, Download, Plus, Search, Filter, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import Modal from "@/components/Modal";
 
-const fuelMockData = [
-    { id: 1, date: "2024.01.03", car: "쏘렌토 (195하4504)", type: "주유", amount: "55,000", location: "만남의광장 주유소", driver: "홍길동" },
-    { id: 2, date: "2024.01.02", car: "카니발 (333루3333)", type: "통행료", amount: "4,500", location: "하이패스 (서서울TG)", driver: "김철수" },
-    { id: 3, date: "2024.01.01", car: "쏘렌토 (195하4504)", type: "주유", amount: "72,000", location: "강남 주유소", driver: "박민수" },
-    { id: 4, date: "2023.12.30", car: "아반떼 (123가4567)", type: "수리비", amount: "120,000", location: "블루핸즈 역삼점", driver: "이영희" },
-];
+import { fuelMockData } from "@/lib/mockData";
 
 export default function FuelTokensPage() {
     const [fuelData, setFuelData] = useState(fuelMockData);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // Filtering State
+    const [selectedYear, setSelectedYear] = useState("전체");
+    const [selectedVehicle, setSelectedVehicle] = useState("전체");
+
+    // Derived Data
+    const uniqueYears = Array.from(new Set(fuelData.map(item => item.date.split('.')[0]))).sort((a, b) => b.localeCompare(a));
+    const uniqueVehicles = Array.from(new Set(fuelData.map(item => item.car))).sort();
+
+    const filteredFuelData = fuelData.filter(item => {
+        const itemYear = item.date.split('.')[0];
+        const matchYear = selectedYear === "전체" || itemYear === selectedYear;
+        const matchVehicle = selectedVehicle === "전체" || item.car === selectedVehicle;
+        return matchYear && matchVehicle;
+    });
+
+    // Calculate Summary Costs
+    const totalFuelCost = filteredFuelData
+        .filter(item => item.type === "주유")
+        .reduce((sum, item) => sum + parseInt(item.amount.replace(/,/g, '')), 0);
+
+    const totalTollCost = filteredFuelData
+        .filter(item => item.type === "통행료")
+        .reduce((sum, item) => sum + parseInt(item.amount.replace(/,/g, '')), 0);
+
+    const totalMiscCost = filteredFuelData
+        .filter(item => item.type !== "주유" && item.type !== "통행료")
+        .reduce((sum, item) => sum + parseInt(item.amount.replace(/,/g, '')), 0);
+
+    const formattedFuelCost = totalFuelCost.toLocaleString();
+    const formattedTollCost = totalTollCost.toLocaleString();
+    const formattedMiscCost = totalMiscCost.toLocaleString();
 
     // Form state
     const [formData, setFormData] = useState({
@@ -52,6 +80,53 @@ export default function FuelTokensPage() {
         });
     };
 
+    const handleExportCSV = async () => {
+        const headers = ["날짜", "차량", "유형", "금액", "장소", "운전자"];
+
+        const rows = filteredFuelData.map(item => [
+            item.date,
+            item.car,
+            item.type,
+            item.amount,
+            item.location,
+            item.driver
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+        if ('showSaveFilePicker' in window) {
+            try {
+                const handle = await (window as any).showSaveFilePicker({
+                    suggestedName: `주유톨비기록_${new Date().toISOString().split('T')[0]}.csv`,
+                    types: [{
+                        description: 'CSV Files',
+                        accept: { 'text/csv': ['.csv'] }
+                    }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } catch (err) {
+                console.log('다운로드 취소됨');
+            }
+        } else {
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `주유톨비기록_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -60,7 +135,10 @@ export default function FuelTokensPage() {
                     <p className="text-muted-foreground text-sm mt-1">차량 유지비용 지출 내역을 기록합니다.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">
+                    <button
+                        onClick={handleExportCSV}
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border"
+                    >
                         <Download className="h-4 w-4" />
                         내보내기
                     </button>
@@ -152,8 +230,8 @@ export default function FuelTokensPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="glass-card p-6 rounded-xl flex items-center justify-between border-l-4 border-l-primary">
                     <div>
-                        <p className="text-muted-foreground text-sm font-medium">이번달 주유비</p>
-                        <p className="text-2xl font-bold text-foreground mt-1">₩540,000</p>
+                        <p className="text-muted-foreground text-sm font-medium">총 주유비 (조회)</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">₩{formattedFuelCost}</p>
                     </div>
                     <div className="p-3 bg-primary/10 rounded-lg text-primary">
                         <Fuel className="h-6 w-6" />
@@ -161,8 +239,8 @@ export default function FuelTokensPage() {
                 </div>
                 <div className="glass-card p-6 rounded-xl flex items-center justify-between border-l-4 border-l-orange-500">
                     <div>
-                        <p className="text-muted-foreground text-sm font-medium">이번달 통행료</p>
-                        <p className="text-2xl font-bold text-foreground mt-1">₩84,500</p>
+                        <p className="text-muted-foreground text-sm font-medium">총 통행료 (조회)</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">₩{formattedTollCost}</p>
                     </div>
                     <div className="p-3 bg-orange-500/10 rounded-lg text-orange-400">
                         <DollarSign className="h-6 w-6" />
@@ -170,8 +248,8 @@ export default function FuelTokensPage() {
                 </div>
                 <div className="glass-card p-6 rounded-xl flex items-center justify-between border-l-4 border-l-muted-foreground">
                     <div>
-                        <p className="text-muted-foreground text-sm font-medium">기타 정비/세차</p>
-                        <p className="text-2xl font-bold text-foreground mt-1">₩150,000</p>
+                        <p className="text-muted-foreground text-sm font-medium">기타 정비/세차 (조회)</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">₩{formattedMiscCost}</p>
                     </div>
                     <div className="p-3 bg-secondary rounded-lg text-muted-foreground">
                         <DollarSign className="h-6 w-6" />
@@ -181,6 +259,38 @@ export default function FuelTokensPage() {
 
             {/* Filters */}
             <div className="glass-card rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                    {/* Year Dropdown */}
+                    <div className="relative">
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                            className="appearance-none pl-4 pr-10 py-2.5 bg-secondary/50 border border-input rounded-lg text-sm font-medium text-foreground focus:outline-none focus:border-primary transition-colors min-w-[120px]"
+                        >
+                            <option value="전체">전체 연도</option>
+                            {uniqueYears.map(year => (
+                                <option key={year} value={year}>{year}년</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    </div>
+
+                    {/* Vehicle Dropdown */}
+                    <div className="relative">
+                        <select
+                            value={selectedVehicle}
+                            onChange={(e) => setSelectedVehicle(e.target.value)}
+                            className="appearance-none pl-4 pr-10 py-2.5 bg-secondary/50 border border-input rounded-lg text-sm font-medium text-foreground focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+                        >
+                            <option value="전체">전체 차량</option>
+                            {uniqueVehicles.map(car => (
+                                <option key={car} value={car}>{car}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                </div>
+
                 <div className="relative flex-1 w-full md:max-w-md">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <input
@@ -188,12 +298,6 @@ export default function FuelTokensPage() {
                         placeholder="차량, 운전자, 장소 검색..."
                         className="w-full pl-9 pr-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                     />
-                </div>
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <button className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-                        <Filter className="h-4 w-4" />
-                        필터
-                    </button>
                 </div>
             </div>
 
@@ -203,19 +307,19 @@ export default function FuelTokensPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs font-medium">
                             <tr>
-                                <th className="px-6 py-4">날짜</th>
-                                <th className="px-6 py-4">구분</th>
-                                <th className="px-6 py-4">차량</th>
-                                <th className="px-6 py-4">장소/내역</th>
-                                <th className="px-6 py-4 text-right">금액</th>
-                                <th className="px-6 py-4">기록자</th>
+                                <th className="px-6 py-4 min-w-[120px] whitespace-nowrap">날짜</th>
+                                <th className="px-6 py-4 min-w-[80px] whitespace-nowrap">구분</th>
+                                <th className="px-6 py-4 min-w-[150px]">차량</th>
+                                <th className="px-6 py-4 min-w-[250px]">장소/내역</th>
+                                <th className="px-6 py-4 text-right min-w-[100px] whitespace-nowrap">금액</th>
+                                <th className="px-6 py-4 min-w-[100px] whitespace-nowrap">기록자</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {fuelData.map((item) => (
+                            {filteredFuelData.map((item) => (
                                 <tr key={item.id} className="hover:bg-secondary/30 transition-colors">
-                                    <td className="px-6 py-4 text-muted-foreground">{item.date}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{item.date}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 rounded text-xs font-medium border ${item.type === '주유' ? 'bg-primary/10 text-primary border-primary/20' :
                                             item.type === '통행료' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
                                                 'bg-secondary text-muted-foreground border-border'
@@ -225,8 +329,8 @@ export default function FuelTokensPage() {
                                     </td>
                                     <td className="px-6 py-4 font-medium text-foreground">{item.car}</td>
                                     <td className="px-6 py-4 text-muted-foreground">{item.location}</td>
-                                    <td className="px-6 py-4 text-right font-medium text-foreground">₩{item.amount}</td>
-                                    <td className="px-6 py-4 text-muted-foreground">{item.driver}</td>
+                                    <td className="px-6 py-4 text-right font-medium text-foreground whitespace-nowrap">₩{item.amount}</td>
+                                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{item.driver}</td>
                                 </tr>
                             ))}
                         </tbody>

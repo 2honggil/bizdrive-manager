@@ -1,33 +1,42 @@
 "use client";
 
-import { MapPin, Camera, Navigation, Car, AlertCircle } from "lucide-react";
+import { MapPin, Camera, Navigation, Car, AlertCircle, Plus, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import Modal from "@/components/Modal";
 
-const parkingZones = [
-    {
-        name: "본사 (파미어스몰)", spots: [
-            { id: "A1", status: "occupied", car: "쏘렌토 (195하4504)", time: "10:30" },
-            { id: "A2", status: "empty" },
-            { id: "A3", status: "empty" },
-            { id: "A4", status: "occupied", car: "아반떼 (123가4567)", time: "09:00" },
-        ]
-    },
-    {
-        name: "외부 주차장", spots: [
-            { id: "B1", status: "empty" },
-            { id: "B2", status: "occupied", car: "카니발 (333루3333)", time: "Yesterday" },
-            { id: "B3", status: "empty" },
-        ]
-    }
-];
-
-const lastParked = [
-    { car: "쏘렌토 (195하4504)", location: "본사 - A1", photo: true, time: "오늘 10:30", driver: "홍길동" },
-    { car: "아반떼 (123가4567)", location: "본사 - A4", photo: true, time: "오늘 09:00", driver: "이영희" },
-    { car: "카니발 (333루3333)", location: "외부 - B2", photo: false, time: "어제 18:00", driver: "김철수" },
-    { car: "그랜저 (999호9999)", location: "출차 중", photo: false, time: "-", driver: "최지우" },
-];
+import { parkingZones, lastParked } from "@/lib/mockData";
 
 export default function ParkingPage() {
+    const [zones, setZones] = useState(parkingZones);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [selectedSpot, setSelectedSpot] = useState<any>(null);
+    const [formData, setFormData] = useState({ car: "", time: "09:00" });
+
+    const handleSpotClick = (zoneName: string, spot: any) => {
+        setSelectedSpot({ zoneName, ...spot });
+        setFormData({ car: spot.car || "", time: spot.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) });
+        setIsAssignModalOpen(true);
+    };
+
+    const handleAssign = (e: React.FormEvent) => {
+        e.preventDefault();
+        setZones(zones.map(zone => {
+            if (zone.name === selectedSpot.zoneName) {
+                return {
+                    ...zone,
+                    spots: zone.spots.map(s => {
+                        if (s.id === selectedSpot.id) {
+                            return { ...s, car: formData.car, status: formData.car ? 'occupied' : 'empty', time: formData.time };
+                        }
+                        return s;
+                    })
+                };
+            }
+            return zone;
+        }));
+        setIsAssignModalOpen(false);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -52,38 +61,31 @@ export default function ParkingPage() {
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 {zone.spots.map((spot) => {
-                                    // Find if any vehicle is parked specifically at this zone and spot ID
-                                    // Format in lastParked: "ZoneName - SpotID"
-                                    const zonePrefix = zone.name.split(" ")[0]; // "본사" or "외부"
-                                    const targetLoc = `${zonePrefix} - ${spot.id}`;
-                                    const occupant = lastParked.find(p => p.location === targetLoc);
-
-                                    if (!occupant) return null;
-
                                     return (
-                                        <div
+                                        <button
                                             key={spot.id}
-                                            className={`relative aspect-square rounded-xl border flex flex-col items-center justify-center p-2 text-center transition-all ${occupant
-                                                ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5'
-                                                : 'bg-secondary/30 border-border border-dashed'
+                                            onClick={() => handleSpotClick(zone.name, spot)}
+                                            className={`relative aspect-square rounded-xl border flex flex-col items-center justify-center p-2 text-center transition-all hover:scale-[1.02] ${spot.status === 'empty'
+                                                ? 'bg-secondary/30 border-dashed border-border text-muted-foreground hover:bg-secondary/50'
+                                                : 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5'
                                                 }`}
                                         >
                                             <span className="absolute top-2 left-3 text-[10px] font-black tracking-tighter text-muted-foreground/60">
-                                                {occupant ? occupant.location : spot.id}
+                                                {spot.id}
                                             </span>
-                                            {occupant ? (
+                                            {spot.status === 'empty' ? (
+                                                <Plus className="h-6 w-6 text-muted-foreground/30" />
+                                            ) : (
                                                 <>
                                                     <Car className="h-8 w-8 text-primary mb-2 drop-shadow-sm" />
-                                                    <p className="text-[10px] font-black text-foreground truncate w-full">{occupant.car.split(' ')[0]}</p>
-                                                    <p className="text-[8px] text-muted-foreground truncate w-full tracking-tighter">{occupant.car.split(' ')[1]}</p>
+                                                    <p className="text-[10px] font-black text-foreground truncate w-full">{spot.car?.split(' ')[0]}</p>
+                                                    <p className="text-[8px] text-muted-foreground truncate w-full tracking-tighter">{spot.car?.split(' ')[1]}</p>
                                                     <div className="mt-1 px-1.5 py-0.5 bg-primary/20 rounded text-[8px] font-bold text-primary">
-                                                        {occupant.time}
+                                                        {spot.time}
                                                     </div>
                                                 </>
-                                            ) : (
-                                                <span className="text-[10px] font-medium text-muted-foreground/40">EMPTY</span>
                                             )}
-                                        </div>
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -126,6 +128,44 @@ export default function ParkingPage() {
                     </div>
                 </div>
             </div>
+
+            <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} title="주차 위치 배정">
+                <form className="space-y-4" onSubmit={handleAssign}>
+                    <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl mb-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">배정 위치</p>
+                        <p className="text-sm font-black text-foreground">{selectedSpot?.zoneName} - {selectedSpot?.id}번 구역</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">배정 차량</label>
+                        <select
+                            value={formData.car}
+                            onChange={(e) => setFormData({ ...formData, car: e.target.value })}
+                            className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                        >
+                            <option value="">비어 있음 (출차)</option>
+                            <option>쏘렌토 (195하4504)</option>
+                            <option>아반떼 (123가4567)</option>
+                            <option>카니발 (333루3333)</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">주차 시간</label>
+                        <input
+                            type="time"
+                            value={formData.time}
+                            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                            className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="button" onClick={() => setIsAssignModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
+                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors">배정 완료</button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }

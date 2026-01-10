@@ -2,44 +2,241 @@
 
 import { Car, Fuel, Calendar, ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
 
+import { mockLogs, fuelMockData } from "@/lib/mockData";
+import { useMemo, useState, useEffect } from "react";
+
 export default function Dashboard() {
+    const [reservationCount, setReservationCount] = useState(0);
+    const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
+
+    // Load reservations from localStorage
+    useEffect(() => {
+        const loadReservations = () => {
+            const saved = localStorage.getItem('bizdrive-reservations');
+            if (saved) {
+                try {
+                    const reservations = JSON.parse(saved);
+                    // Count upcoming reservations (today or later)
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const upcoming = reservations.filter((res: any) => {
+                        const resDate = new Date(res.date);
+                        return resDate >= today;
+                    }).sort((a: any, b: any) => {
+                        const dateCompare = a.date.localeCompare(b.date);
+                        if (dateCompare !== 0) return dateCompare;
+                        return a.startTime.localeCompare(b.startTime);
+                    });
+
+                    setReservationCount(upcoming.length);
+                    setUpcomingReservations(upcoming.slice(0, 3)); // Show top 3
+                } catch (e) {
+                    console.error('Failed to load reservations', e);
+                }
+            } else {
+                setReservationCount(0);
+                setUpcomingReservations([]);
+            }
+        };
+
+        // Initial load
+        loadReservations();
+
+        // Listen for storage changes (works across tabs)
+        window.addEventListener('storage', loadReservations);
+
+        // Listen for custom reservation changes (same tab)
+        window.addEventListener('reservations-changed', loadReservations);
+
+        // Listen for focus events (when user returns to tab)
+        window.addEventListener('focus', loadReservations);
+
+        return () => {
+            window.removeEventListener('storage', loadReservations);
+            window.removeEventListener('reservations-changed', loadReservations);
+            window.removeEventListener('focus', loadReservations);
+        };
+    }, []);
+
+    // Calculate dashboard statistics
+    const stats = useMemo(() => {
+        // 1. Determine "Current Month" based on the latest log (Jan 2026)
+        const sortedLogs = [...mockLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const latestLogDate = sortedLogs[0]?.date ? new Date(sortedLogs[0].date) : new Date();
+        const currentYear = latestLogDate.getFullYear();
+        const currentMonth = latestLogDate.getMonth() + 1; // 1-based
+
+        // Filter logs for the "Current Month"
+        const currentMonthLogs = mockLogs.filter(log => {
+            const d = new Date(log.date);
+            return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+        });
+
+        // Total Distance (Current Month)
+        const totalDistance = currentMonthLogs.reduce((sum, log) => sum + (log.endKm - log.startKm), 0);
+
+        // Fuel Cost (Current Month) - Note: mockFuelData might be older, so this might be 0 if no match
+        // Let's assume we show the latest available month with data for Fuel if current is empty? 
+        // Or just show strict current month. Sticking to strict current month for accuracy.
+        const currentMonthFuel = fuelMockData.filter(item => {
+            const d = new Date(item.date);
+            return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+        });
+        const totalFuelCost = currentMonthFuel.reduce((sum, item) => sum + parseInt(item.amount.replace(/,/g, ''), 10), 0);
+
+        // Monthly Chart Data (Last 12 months)
+        const chartData = Array.from({ length: 12 }, (_, i) => {
+            const d = new Date(currentYear, currentMonth - 1 - i, 1);
+            const y = d.getFullYear();
+            const m = d.getMonth() + 1;
+
+            const monthLogs = mockLogs.filter(log => {
+                const ld = new Date(log.date);
+                return ld.getFullYear() === y && (ld.getMonth() + 1) === m;
+            });
+
+            const value = monthLogs.reduce((sum, log) => sum + (log.endKm - log.startKm), 0);
+
+            return {
+                month: `${m}월`,
+                value,
+                year: y
+            };
+        }).reverse();
+
+        // Utilization Rate Calculation
+        // (Number of unique days with operations / Total days in current month) x 100
+        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const uniqueOperatingDays = new Set(
+            currentMonthLogs.map(log => {
+                const d = new Date(log.date);
+                return d.getDate(); // Day of month (1-31)
+            })
+        ).size;
+        const utilizationRate = daysInMonth > 0 ? Math.round((uniqueOperatingDays / daysInMonth) * 100) : 0;
+
+        // Last Month Utilization Rate
+        const lastMonthDate = new Date(currentYear, currentMonth - 2, 1); // Previous month
+        const lastMonthYear = lastMonthDate.getFullYear();
+        const lastMonth = lastMonthDate.getMonth() + 1;
+        const lastMonthLogs = mockLogs.filter(log => {
+            const d = new Date(log.date);
+            return d.getFullYear() === lastMonthYear && (d.getMonth() + 1) === lastMonth;
+        });
+        const lastMonthDaysInMonth = new Date(lastMonthYear, lastMonth, 0).getDate();
+        const lastMonthUniqueDays = new Set(
+            lastMonthLogs.map(log => new Date(log.date).getDate())
+        ).size;
+        const lastMonthUtilization = lastMonthDaysInMonth > 0 ? Math.round((lastMonthUniqueDays / lastMonthDaysInMonth) * 100) : 0;
+
+        // Overall Average Utilization Rate (all months with data)
+        const monthsWithData = new Set(mockLogs.map(log => {
+            const d = new Date(log.date);
+            return `${d.getFullYear()}-${d.getMonth() + 1}`;
+        }));
+
+        let totalUtilization = 0;
+        monthsWithData.forEach(monthKey => {
+            const [year, month] = monthKey.split('-').map(Number);
+            const monthLogs = mockLogs.filter(log => {
+                const d = new Date(log.date);
+                return d.getFullYear() === year && (d.getMonth() + 1) === month;
+            });
+            const daysInThisMonth = new Date(year, month, 0).getDate();
+            const uniqueDays = new Set(monthLogs.map(log => new Date(log.date).getDate())).size;
+            totalUtilization += (uniqueDays / daysInThisMonth) * 100;
+        });
+        const overallAverageUtilization = monthsWithData.size > 0 ? Math.round(totalUtilization / monthsWithData.size) : 0;
+
+        // Vehicle Status Data
+        // Group by car
+        const cars = Array.from(new Set(mockLogs.map(l => l.car)));
+        const vehicleStatus = cars.map(carName => {
+            const carLogs = mockLogs.filter(l => l.car === carName);
+            // Sort desc
+            carLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            const totalMileage = carLogs[0]?.endKm || 0;
+
+            const thisMonthLogs = carLogs.filter(log => {
+                const d = new Date(log.date);
+                return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+            });
+            const monthlyMileage = thisMonthLogs.reduce((sum, log) => sum + (log.endKm - log.startKm), 0);
+
+            // Determine status based on recent activity (e.g., if used in last 3 days = In Use, else Standby)
+            // This is a simple heuristic.
+            const lastUsed = new Date(carLogs[0]?.date);
+            const daysSinceLastUse = (new Date().getTime() - lastUsed.getTime()) / (1000 * 3600 * 24);
+
+            // Extract simplified name and number
+            // Format: "기아 쏘렌토 (195하4504)" -> Name: "쏘렌토", Number: "195하4504"
+            const match = carName.match(/(.*)\s\((.*)\)/);
+            const cleanName = match ? match[1].replace('기아 ', '').replace('현대 ', '') : carName;
+            const number = match ? match[2] : '';
+
+            return {
+                originalName: carName,
+                name: cleanName,
+                number: number,
+                totalMileage: `${totalMileage.toLocaleString()} km`,
+                monthlyMileage: `${monthlyMileage.toLocaleString()} km`,
+                status: daysSinceLastUse < 7 ? "운행중" : "대기중", // Simple logic
+                progress: Math.min((monthlyMileage / 2000) * 100, 100) // Dummy target of 2000km
+            };
+        });
+
+        return {
+            currentMonth: `${currentMonth}월`,
+            totalDistance,
+            totalFuelCost,
+            utilizationRate,
+            lastMonthUtilization,
+            overallAverageUtilization,
+            chartData,
+            vehicleStatus
+        };
+    }, []);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-foreground">대시보드</h1>
                 <div className="text-sm text-muted-foreground">
-                    최근 업데이트: 오늘 09:41
+                    최근 업데이트: 오늘 {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                 </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard
-                    title="총 운행거리 (1월)"
-                    value="1,245km"
-                    change="+12.5%"
+                    title={`총 운행거리 (${stats.currentMonth})`}
+                    value={`${stats.totalDistance.toLocaleString()}km`}
+                    change="12.5%" // Stable mock value to fix hydration mismatch
                     trend="up"
                     icon={Car}
                 />
                 <StatCard
                     title="월 누적 주유금액"
-                    value="₩450,000"
-                    change="+4.2%"
-                    trend="down"
+                    value={`₩${stats.totalFuelCost.toLocaleString()}`}
+                    change="변동없음" // Fuel data is sparse in current mock
+                    trend="neutral"
                     icon={Fuel}
                 />
                 <StatCard
                     title="예정된 예약"
-                    value="5건"
-                    change="이번주"
-                    trend="neutral"
+                    value={`${reservationCount}건`}
+                    change={reservationCount > 0 ? "예약 있음" : "예약 없음"}
+                    trend={reservationCount > 0 ? "up" : "neutral"}
                     icon={Calendar}
+                    showTrendLabel={false}
                 />
                 <StatCard
                     title="가동률"
-                    value="82%"
-                    change="+2.4%"
-                    trend="up"
+                    value={`${stats.utilizationRate}%`}
+                    subtitle1={`지난달: ${stats.lastMonthUtilization}%`}
+                    subtitle2={`전체 평균: ${stats.overallAverageUtilization}%`}
+                    trend={stats.utilizationRate >= 50 ? "up" : stats.utilizationRate > 0 ? "neutral" : "down"}
                     icon={ArrowUpRight}
                 />
             </div>
@@ -55,24 +252,11 @@ export default function Dashboard() {
                         </button>
                     </div>
 
-                    {/* Custom CSS Chart - Bar Chart with Mock Data */}
+                    {/* Custom CSS Chart - Bar Chart with Real Data */}
                     <div className="h-64 flex items-end justify-between gap-2 pt-8 px-2 relative">
-                        {[
-                            { month: "1월", value: 1245 },
-                            { month: "2월", value: 1560 },
-                            { month: "3월", value: 1320 },
-                            { month: "4월", value: 1840 },
-                            { month: "5월", value: 1450 },
-                            { month: "6월", value: 1920 },
-                            { month: "7월", value: 1100 },
-                            { month: "8월", value: 1680 },
-                            { month: "9월", value: 1420 },
-                            { month: "10월", value: 2050 },
-                            { month: "11월", value: 1750 },
-                            { month: "12월", value: 2200 },
-                        ].map((data, i) => {
-                            const maxHeight = 2500;
-                            const heightPercentage = (data.value / maxHeight) * 100;
+                        {stats.chartData.map((data, i) => {
+                            const maxHeight = 3000; // Adjusted max height
+                            const heightPercentage = Math.min((data.value / maxHeight) * 100, 100);
                             return (
                                 <div key={i} className="flex flex-col items-center gap-2 group w-full h-full justify-end">
                                     <div className="relative w-full bg-secondary/20 rounded-t-md h-full flex items-end overflow-visible">
@@ -82,7 +266,7 @@ export default function Dashboard() {
                                         </div>
                                         <div
                                             style={{ height: `${heightPercentage}%` }}
-                                            className={`w-full bg-primary/40 group-hover:bg-primary transition-all duration-500 rounded-t-md relative shadow-[0_0_20px_rgba(var(--primary),0.1)] group-hover:shadow-[0_0_25px_rgba(var(--primary),0.4)] ${i === 11 ? 'animate-pulse-slow' : ''}`}
+                                            className={`w-full bg-primary/40 group-hover:bg-primary transition-all duration-500 rounded-t-md relative shadow-[0_0_20px_rgba(var(--primary),0.1)] group-hover:shadow-[0_0_25px_rgba(var(--primary),0.4)]`}
                                         >
                                             {/* Glow effect */}
                                             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-md"></div>
@@ -95,32 +279,27 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Upcoming Reservations */}
                 <div className="glass-card rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-foreground mb-6">다가오는 예약</h3>
                     <div className="space-y-4">
-                        {[
-                            { car: "쏘렌토 (195하4504)", user: "홍길동", time: "오늘 14:00", status: "승인" },
-                            { car: "아반떼 (123가4567)", user: "김철수", time: "내일 09:00", status: "대기" },
-                            { car: "그랜저 (999호9999)", user: "이영희", time: "1월 6일", status: "승인" },
-                            { car: "카니발 (333루3333)", user: "박민수", time: "1월 7일", status: "승인" },
-                            { car: "쏘렌토 (195하4504)", user: "최지우", time: "1월 8일", status: "대기" },
-                        ].map((res, i) => (
-                            <div key={i} className="flex items-stretch gap-3 p-3 rounded-lg bg-secondary/30 border border-border hover:bg-secondary/50 transition-colors">
-                                <div className="flex flex-col flex-1 pl-1">
-                                    <span className="text-sm font-medium text-foreground">{res.car}</span>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-xs text-muted-foreground">{res.user}</span>
-                                        <span className="text-muted-foreground text-[10px]">•</span>
-                                        <span className="text-xs text-muted-foreground">{res.time}</span>
+                        {upcomingReservations.length > 0 ? (
+                            upcomingReservations.map((res: any, i: number) => (
+                                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20 border border-white/5">
+                                    <div className={`w-2 h-10 rounded-full ${res.color || 'bg-primary'}`} />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-black text-primary uppercase tracking-tighter">
+                                            {res.date.split('-')[1]}월 {res.date.split('-')[2]}일 · {res.startTime}
+                                        </div>
+                                        <div className="text-sm font-bold text-foreground truncate">{res.car.replace('쓰렌토', '쏘렌토')}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">{res.user === 'hongilee@mangoslab.com' ? '이홍길' : res.user} · {res.purpose || '목적 없음'}</div>
                                     </div>
                                 </div>
-                                <div className={`px-2 py-1 rounded text-[10px] font-medium h-fit self-center ${res.status === '승인' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                    }`}>
-                                    {res.status}
-                                </div>
+                            ))
+                        ) : (
+                            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+                                예정된 예약이 없습니다.
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </div>
@@ -132,12 +311,7 @@ export default function Dashboard() {
                     <span className="text-xs text-primary font-bold px-3 py-1 bg-primary/10 rounded-full border border-primary/20 tracking-tighter uppercase">Real-time Status</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                        { name: "쏘렌토", number: "195하4504", totalMileage: "42,500 km", monthlyMileage: "1,245 km", status: "운행중", progress: 65 },
-                        { name: "아반떼", number: "123가4567", totalMileage: "15,200 km", monthlyMileage: "850 km", status: "대기중", progress: 30 },
-                        { name: "카니발", number: "333루3333", totalMileage: "28,900 km", monthlyMileage: "1,100 km", status: "점검필요", progress: 85 },
-                        { name: "그랜저", number: "999호9999", totalMileage: "8,400 km", monthlyMileage: "620 km", status: "대기중", progress: 15 },
-                    ].map((vehicle, i) => (
+                    {stats.vehicleStatus.map((vehicle, i) => (
                         <div key={i} className="p-5 rounded-2xl bg-secondary/20 border border-white/5 hover:bg-secondary/40 hover:border-primary/30 transition-all group relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
                             <div className="flex items-center justify-between mb-5">
@@ -181,7 +355,7 @@ export default function Dashboard() {
     );
 }
 
-function StatCard({ title, value, change, trend, icon: Icon }: any) {
+function StatCard({ title, value, change, subtitle1, subtitle2, trend, icon: Icon, showTrendLabel = true }: any) {
     return (
         <div className="glass-card rounded-xl p-6 hover:bg-accent/40 transition-colors group">
             <div className="flex items-center justify-between">
@@ -194,22 +368,31 @@ function StatCard({ title, value, change, trend, icon: Icon }: any) {
                 </div>
             </div>
             <div className="mt-4 flex items-center text-xs">
-                {trend === 'up' ? (
-                    <span className="text-green-400 flex items-center font-medium bg-green-400/10 px-1.5 py-0.5 rounded">
-                        <ArrowUpRight className="h-3 w-3 mr-1" />
-                        {change}
-                    </span>
-                ) : trend === 'down' ? (
-                    <span className="text-red-400 flex items-center font-medium bg-red-400/10 px-1.5 py-0.5 rounded">
-                        <ArrowDownRight className="h-3 w-3 mr-1" />
-                        {change}
-                    </span>
-                ) : (
-                    <span className="text-muted-foreground flex items-center font-medium bg-secondary px-1.5 py-0.5 rounded">
-                        {change}
-                    </span>
-                )}
-                <span className="ml-2 text-muted-foreground">지난달 대비</span>
+                {subtitle1 && subtitle2 ? (
+                    <div className="flex flex-col gap-1 w-full">
+                        <span className="text-muted-foreground">{subtitle1}</span>
+                        <span className="text-muted-foreground">{subtitle2}</span>
+                    </div>
+                ) : change ? (
+                    <>
+                        {trend === 'up' ? (
+                            <span className="text-green-400 flex items-center font-medium bg-green-400/10 px-1.5 py-0.5 rounded">
+                                <ArrowUpRight className="h-3 w-3 mr-1" />
+                                {change}
+                            </span>
+                        ) : trend === 'down' ? (
+                            <span className="text-red-400 flex items-center font-medium bg-red-400/10 px-1.5 py-0.5 rounded">
+                                <ArrowDownRight className="h-3 w-3 mr-1" />
+                                {change}
+                            </span>
+                        ) : (
+                            <span className="text-muted-foreground flex items-center font-medium bg-secondary px-1.5 py-0.5 rounded">
+                                {change}
+                            </span>
+                        )}
+                        {showTrendLabel && <span className="ml-2 text-muted-foreground">지난달 대비</span>}
+                    </>
+                ) : null}
             </div>
         </div>
     )

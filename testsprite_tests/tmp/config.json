@@ -1,0 +1,16 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "bizdrive-manager",
+    "projectPath": "/Users/lhg_mac/Antigravity/bizdrive-manager",
+    "testIds": [],
+    "additionalInstruction": "Focus on verifying the recent fixes for vehicle log saving and single-vehicle display. Also ensure the mobile layout responsiveness.",
+    "envs": {
+      "API_KEY": "sk-user-RNn5zec9eH3al14j-j2MUPqXlSLyQRZZZdSRjNVoE-afXgshIWH46YRUwZqc-6x5ni9C5NhuHam8BHusEmh8tsw3aOcIdchfbJ8ITvu7mKOZBFdNge1CUpZChTxTZChJUL8"
+    }
+  },
+  "proxy": "http://dd77d808-6231-4d91-bc14-3590b91ad141:m52G8tM7qZWxpLr5Yh4SRYCU0yIYRzoN@tun.testsprite.com:8080"
+}

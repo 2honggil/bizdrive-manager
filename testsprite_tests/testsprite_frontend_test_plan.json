@@ -1,0 +1,471 @@
+[
+  {
+    "id": "TC001",
+    "title": "Add new vehicle driving log successfully",
+    "description": "Verify that a user can add a new vehicle driving log with valid inputs, and the log is saved and displayed correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the vehicle driving logs interface"
+      },
+      {
+        "type": "action",
+        "description": "Click on 'Add new log' button"
+      },
+      {
+        "type": "action",
+        "description": "Fill in all required fields with valid data (date, vehicle, driver, start/end location, mileage)"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new driving log appears in the list with correct details"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm data is persisted by refreshing the page and checking the log still exists"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Edit an existing vehicle driving log",
+    "description": "Verify that the user can edit an existing vehicle driving log and changes are saved correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the vehicle driving logs list"
+      },
+      {
+        "type": "action",
+        "description": "Select an existing log and click 'Edit'"
+      },
+      {
+        "type": "action",
+        "description": "Modify fields such as mileage and notes"
+      },
+      {
+        "type": "action",
+        "description": "Submit the changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated data is reflected in the driving logs list"
+      },
+      {
+        "type": "assertion",
+        "description": "Reload the page and verify that the changes persist"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Delete a vehicle driving log",
+    "description": "Ensure that a user can delete a driving log and it is removed from the list and database.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the vehicle driving logs"
+      },
+      {
+        "type": "action",
+        "description": "Select a driving log and click 'Delete'"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the deletion action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the driving log is removed from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Reload page and verify the log does not reappear"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Filter driving logs by date range and vehicle",
+    "description": "Verify filtering driving logs by various criteria (date range, vehicle) returns correct subset of logs.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the driving logs interface"
+      },
+      {
+        "type": "action",
+        "description": "Set date range filter"
+      },
+      {
+        "type": "action",
+        "description": "Set vehicle filter"
+      },
+      {
+        "type": "action",
+        "description": "Apply filters"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify only the driving logs matching the filters appear"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Export driving logs to CSV with UTF-8 BOM",
+    "description": "Validate CSV export of driving logs includes UTF-8 BOM in the file header for compatibility.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the driving logs page with some logs available"
+      },
+      {
+        "type": "action",
+        "description": "Click on the 'Export to CSV' button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the downloaded CSV file is decoded properly in UTF-8 and contains BOM characters"
+      },
+      {
+        "type": "assertion",
+        "description": "Check CSV content matches the currently displayed logs"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Create vehicle reservation with no conflicts",
+    "description": "Verify user can create a new reservation on the calendar view if the time slot and vehicle are available.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open vehicle reservations calendar"
+      },
+      {
+        "type": "action",
+        "description": "Select a free date and time slot for a vehicle"
+      },
+      {
+        "type": "action",
+        "description": "Enter reservation details and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reservation is added on the calendar correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Prevent vehicle reservation conflict on calendar",
+    "description": "Ensure the system blocks reservation creation if the vehicle is already booked for the specified time.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open reservations calendar"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to create a reservation for a vehicle already reserved at chosen time"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system displays a conflict error message and prevents saving"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Fueling and maintenance record add and validation",
+    "description": "Verify users can add fueling or maintenance events using forms that validate input fields correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to fueling and maintenance tracking section"
+      },
+      {
+        "type": "action",
+        "description": "Open 'Add Fueling' form, input valid data, and submit"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the fueling record is saved and displayed in the list"
+      },
+      {
+        "type": "action",
+        "description": "Open 'Add Maintenance' form, leave mandatory fields blank and attempt submission"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are shown and submission is blocked"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Parking spot allocation and management",
+    "description": "Test that administrators can assign and reassign parking spots to vehicles or users successfully.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to parking spot management interface"
+      },
+      {
+        "type": "action",
+        "description": "Assign a free parking spot to a vehicle"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify parking spot is associated with the vehicle"
+      },
+      {
+        "type": "action",
+        "description": "Change the parking spot allocation to another vehicle or user"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify allocation updates correctly without conflicts"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Admin dashboard statistics display and accuracy",
+    "description": "Validate that the admin dashboard shows real-time, accurate, and comprehensive statistics on fleet operations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the admin dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify correct rendering of visual statistics for vehicle usage, maintenance, fueling and user activities"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm metrics update in near real-time after data changes"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "User management: add, edit, and remove users",
+    "description": "Check that admin users can manage user accounts and roles with correct workflows and validations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Go to user management interface"
+      },
+      {
+        "type": "action",
+        "description": "Add a new user with valid credentials and assign a role"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new user appears in the list with correct role"
+      },
+      {
+        "type": "action",
+        "description": "Edit an existing user's role"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm role update persists"
+      },
+      {
+        "type": "action",
+        "description": "Delete an existing user"
+      },
+      {
+        "type": "assertion",
+        "description": "Check the user is removed from the system"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Responsive UI behavior on mobile devices",
+    "description": "Ensure interface layouts, controls, and inputs adapt correctly and remain usable on mobile screen sizes.",
+    "category": "ui",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access various app pages on a mobile device or emulate mobile viewport"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify buttons and input elements have appropriate tap target sizes"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm input focus behavior (keyboard popup) functions as expected"
+      },
+      {
+        "type": "assertion",
+        "description": "Check no horizontal scrollbars appear and layouts remain usable"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "PC UI features: hover effects, context menus, autocomplete, and shortcuts",
+    "description": "Validate that hover states, context menus, autocomplete inputs fully function along with keyboard shortcuts like ESC key.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "On desktop viewport, hover on interactive elements and check expected visual feedback"
+      },
+      {
+        "type": "action",
+        "description": "Test context menu triggers on right-click for relevant UI components"
+      },
+      {
+        "type": "action",
+        "description": "Focus on autocomplete input, enter partial data, and select suggestions using keyboard"
+      },
+      {
+        "type": "action",
+        "description": "Press ESC during input or modal dialogs"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify ESC dismisses inputs, lists, or modals correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Form usability and error handling for fueling and maintenance logs",
+    "description": "Check forms have logical default focus, show clear error messages, and allow smooth multi-step input flows.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open fueling and maintenance entry forms"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify initial input focus is set to the first logical field"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid or incomplete data and attempt submission"
+      },
+      {
+        "type": "assertion",
+        "description": "Check that descriptive error messages appear next to relevant fields"
+      },
+      {
+        "type": "action",
+        "description": "Correct errors and submit successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm data is saved and visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "React SSR hydration integrity check",
+    "description": "Ensure there are no mismatches during React SSR hydration, especially in UI elements involving random values or dynamic dates.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Load the application server-side rendered pages"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no React hydration warnings or errors appear in console"
+      },
+      {
+        "type": "assertion",
+        "description": "Check UI components render identically on first load and after hydration"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Accessibility checks for keyboard navigation and shortcuts",
+    "description": "Validate accessibility features including keyboard navigation, focus states, and shortcuts like ESC key dismiss.",
+    "category": "security",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate through app interfaces using keyboard only"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that all focusable elements have visible focus states"
+      },
+      {
+        "type": "action",
+        "description": "Trigger modals or lists and use ESC key to dismiss them"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that ESC key works consistently across UI components"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Usability testing on PC and Mobile devices",
+    "description": "Conduct end-to-end usability workflows on both PC and various mobile devices ensuring no critical user experience blockers.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform key workflows such as driving log management, reservations, and form submissions on desktop"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify smooth interactions with no errors or layout issues"
+      },
+      {
+        "type": "action",
+        "description": "Repeat same workflows on mobile devices with different screen sizes"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm usability is intuitive with no tap/scroll issues or missing content"
+      }
+    ]
+  }
+]

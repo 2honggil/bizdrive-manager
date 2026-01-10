@@ -4,18 +4,7 @@ import { useState } from "react";
 import { MapPin, ParkingCircle, Plus, MoreVertical, Edit, Trash } from "lucide-react";
 import Modal from "@/components/Modal";
 
-const frequentDestinations = [
-    { id: 1, name: "본사", address: "서울시 강남구 테헤란로 123", usage: 145 },
-    { id: 2, name: "강남 파이낸스센터", address: "서울시 강남구 테헤란로 152", usage: 32 },
-    { id: 3, name: "대전 지사", address: "대전광역시 유성구 테크노중앙로 55", usage: 12 },
-    { id: 4, name: "코스트코 양재점", address: "서울시 서초구 양재대로 159", usage: 8 },
-];
-
-const frequentParking = [
-    { id: 1, name: "본사 지하주차장", note: "B3층 임원 전용 구역", type: "실내" },
-    { id: 2, name: "본사 타워주차장", note: "SUV 입차 불가", type: "기계식" },
-    { id: 3, name: "공영 주차장", note: "도보 5분 거리", type: "노상" },
-];
+import { frequentDestinations, frequentParking } from "@/lib/mockData";
 
 export default function FrequentSpotsPage() {
     const [activeTab, setActiveTab] = useState<'destinations' | 'parking'>('destinations');

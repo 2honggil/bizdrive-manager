@@ -21,7 +21,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<User | null>({ email: "hongilee@mangoslab.com", role: "admin", name: "홍길동" });
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 

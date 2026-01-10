@@ -1,17 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Plus, AlertCircle } from "lucide-react";
 import Modal from "@/components/Modal";
 
 // Mock reservation data with full date strings
-const initialReservations = [
-    { id: 1, car: "쏘렌토 (195하4504)", user: "홍길동", date: "2026-01-04", startTime: "09:00", endTime: "12:00", status: "confirmed", color: "bg-indigo-600" },
-    { id: 2, car: "카니발 (333루3333)", user: "김철수", date: "2026-01-04", startTime: "13:00", endTime: "18:00", status: "pending", color: "bg-orange-500" },
-    { id: 3, car: "아반떼 (123가4567)", user: "이영희", date: "2026-01-05", startTime: "10:00", endTime: "15:00", status: "confirmed", color: "bg-green-600" },
-    { id: 4, car: "그랜저 (999호9999)", user: "최지우", date: "2026-01-06", startTime: "09:00", endTime: "18:00", status: "confirmed", color: "bg-blue-600" },
-    { id: 5, car: "쏘렌토 (195하4504)", user: "박민수", date: "2026-01-08", startTime: "14:00", endTime: "16:00", status: "pending", color: "bg-orange-500" },
-];
+const initialReservations: any[] = [];
 
 export default function Reservations() {
     const today = new Date(2026, 0, 9);
@@ -19,16 +13,43 @@ export default function Reservations() {
     const [viewDate, setViewDate] = useState(new Date(2026, 0, 1)); // Target month start
     const [viewMode, setViewMode] = useState<"month" | "week">("month");
     const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
+    const [selectedReservation, setSelectedReservation] = useState<any>(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Get current user - in a real app this would come from auth context
+    const currentUser = "이홍길"; // Display name instead of email
+
+    // Load reservations from localStorage on mount
+    useEffect(() => {
+        const saved = localStorage.getItem('bizdrive-reservations');
+        if (saved) {
+            try {
+                setReservationList(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to load reservations', e);
+            }
+        }
+    }, []);
+
+    // Save reservations to localStorage whenever they change
+    useEffect(() => {
+        if (reservationList.length > 0) {
+            localStorage.setItem('bizdrive-reservations', JSON.stringify(reservationList));
+        }
+    }, [reservationList]);
 
     // Form state
     const [formData, setFormData] = useState({
-        car: "",
+        car: "기아 쏘렌토 (195하4504)",
         startDate: "2026-01-09",
         startTime: "09:00",
         endDate: "2026-01-09",
         endTime: "10:00",
-        purpose: ""
+        purpose: "외근"
     });
+
+    const [error, setError] = useState<string | null>(null);
 
     // Helper functions
     const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -67,14 +88,40 @@ export default function Reservations() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+
+        // Conflict check
+        const newStart = new Date(`${formData.startDate}T${formData.startTime}`);
+        const newEnd = new Date(`${formData.endDate}T${formData.endTime}`);
+
+        if (newEnd <= newStart) {
+            setError("종료 시간이 시작 시간보다 빨라야 합니다.");
+            return;
+        }
+
+        const conflict = reservationList.find(res => {
+            if (res.car !== formData.car) return false;
+            if (res.date !== formData.startDate) return false; // Simple date check for now
+
+            const resStart = new Date(`${res.date}T${res.startTime}`);
+            const resEnd = new Date(`${res.date}T${res.endTime}`);
+
+            return (newStart < resEnd && newEnd > resStart);
+        });
+
+        if (conflict) {
+            setError("해당 시간대에 이미 예약이 존재합니다.");
+            return;
+        }
 
         const colors = ['bg-indigo-600', 'bg-orange-500', 'bg-green-600', 'bg-blue-600', 'bg-purple-600'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
         const newReservation = {
-            id: reservationList.length + 1,
-            car: formData.car || "쏘렌토 (195하4504)",
-            user: "홍길동",
+            id: reservationList.length > 0 ? Math.max(...reservationList.map((r: any) => r.id)) + 1 : 1,
+            car: formData.car,
+            user: currentUser,
+            purpose: formData.purpose,
             date: formData.startDate,
             startTime: formData.startTime,
             endTime: formData.endTime,
@@ -83,17 +130,50 @@ export default function Reservations() {
         };
 
         setReservationList([...reservationList, newReservation]);
+
+        // Update localStorage
+        const updatedList = [...reservationList, newReservation];
+        localStorage.setItem('bizdrive-reservations', JSON.stringify(updatedList));
+
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new Event('reservations-changed'));
+
         setIsReserveModalOpen(false);
 
         // Reset form
         setFormData({
-            car: "",
+            car: "기아 쏘렌토 (195하4504)",
             startDate: "2026-01-09",
             startTime: "09:00",
             endDate: "2026-01-09",
             endTime: "10:00",
-            purpose: ""
+            purpose: "외근"
         });
+        setError(null);
+    };
+
+    const handleDeleteReservation = () => {
+        if (!selectedReservation) {
+            return;
+        }
+
+        const updatedList = reservationList.filter((r: any) => r.id !== selectedReservation.id);
+
+        setReservationList(updatedList);
+
+        // Update localStorage
+        if (updatedList.length > 0) {
+            localStorage.setItem('bizdrive-reservations', JSON.stringify(updatedList));
+        } else {
+            localStorage.removeItem('bizdrive-reservations');
+        }
+
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new Event('reservations-changed'));
+
+        setIsDetailsModalOpen(false);
+        setSelectedReservation(null);
+        setIsDeleting(false);
     };
 
     const renderCalendarDays = () => {
@@ -126,14 +206,30 @@ export default function Reservations() {
                         </div>
                         <div className="space-y-1">
                             {dayReservations.map(res => (
-                                <div key={res.id} className={`text-[10px] p-1 rounded-sm ${res.color} text-white truncate shadow-sm flex items-center gap-1`}>
+                                <div
+                                    key={res.id}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedReservation(res);
+                                        setIsDetailsModalOpen(true);
+                                    }}
+                                    className={`text-[10px] p-1 rounded-sm ${res.color} text-white truncate shadow-sm flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity`}
+                                >
                                     <span className="font-bold shrink-0">{res.startTime}</span>
-                                    <span className="opacity-90">{res.user}</span>
-                                    <span className="opacity-70 truncate">({res.car.split(' ')[0]})</span>
+                                    <span className="opacity-90">
+                                        {res.user === "hongilee@mangoslab.com" ? "이홍길" : res.user}
+                                    </span>
+                                    <span className="opacity-70 truncate">({res.car.includes('(') ? res.car.split('(')[1].split(')')[0] : res.car.split(' ')[0]})</span>
                                 </div>
                             ))}
                         </div>
-                        <button className="absolute bottom-2 right-2 p-1 rounded-full bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDayClick(date);
+                            }}
+                            className="absolute bottom-2 right-2 p-1 rounded-full bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                        >
                             <Plus className="h-3 w-3" />
                         </button>
                     </div>
@@ -169,12 +265,20 @@ export default function Reservations() {
                         </div>
                         <div className="space-y-2 overflow-y-auto max-h-[320px] pr-1 custom-scrollbar">
                             {dayReservations.map(res => (
-                                <div key={res.id} className="p-2.5 rounded-xl bg-secondary/80 border-l-4 border-primary shadow-sm hover:scale-[1.02] transition-transform">
+                                <div
+                                    key={res.id}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedReservation(res);
+                                        setIsDetailsModalOpen(true);
+                                    }}
+                                    className="p-2.5 rounded-xl bg-secondary/80 border-l-4 border-primary shadow-sm hover:scale-[1.02] transition-transform cursor-pointer"
+                                >
                                     <div className="text-[10px] font-bold text-primary mb-1">{res.startTime} - {res.endTime}</div>
-                                    <div className="text-xs font-bold text-foreground truncate">{res.car}</div>
+                                    <div className="text-xs font-bold text-foreground truncate">{res.car.replace('쓰렌토', '쏘렌토')}</div>
                                     <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                                         <div className="w-1 h-1 rounded-full bg-muted-foreground" />
-                                        {res.user} 예약
+                                        {res.user === "hongilee@mangoslab.com" ? "이홍길" : res.user} 예약
                                     </div>
                                 </div>
                             ))}
@@ -282,8 +386,14 @@ export default function Reservations() {
             </div>
 
             {/* Reservation Modal */}
-            <Modal isOpen={isReserveModalOpen} onClose={() => setIsReserveModalOpen(false)} title="차량 예약하기">
+            <Modal isOpen={isReserveModalOpen} onClose={() => { setIsReserveModalOpen(false); setError(null); }} title="차량 예약하기">
                 <form className="space-y-5 p-1" onSubmit={handleSubmit}>
+                    {error && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-bold flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            {error}
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">차량 선택</label>
                         <select
@@ -293,10 +403,7 @@ export default function Reservations() {
                             className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
                         >
                             <option value="">선택하세요</option>
-                            <option>쏘렌토 (195하4504)</option>
-                            <option>아반떼 (123가4567)</option>
-                            <option>카니발 (333루3333)</option>
-                            <option>그랜저 (999호9999)</option>
+                            <option>기아 쏘렌토 (195하4504)</option>
                         </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -345,20 +452,104 @@ export default function Reservations() {
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">목적</label>
-                        <input
-                            type="text"
+                        <select
                             required
                             value={formData.purpose}
                             onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                            placeholder="예: 외근, 출장"
-                            className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                        />
+                            className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+                        >
+                            <option value="외근">외근</option>
+                            <option value="출장">출장</option>
+                            <option value="기타">기타</option>
+                        </select>
                     </div>
                     <div className="flex justify-end gap-3 pt-6">
                         <button type="button" onClick={() => setIsReserveModalOpen(false)} className="px-6 py-3 bg-secondary/50 hover:bg-secondary text-foreground rounded-xl text-sm font-bold transition-all border border-white/5">취소</button>
                         <button type="submit" className="px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-sm font-bold transition-all shadow-xl shadow-primary/30">예약 완료</button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Reservation Details Modal */}
+            <Modal isOpen={isDetailsModalOpen} onClose={() => { setIsDetailsModalOpen(false); setSelectedReservation(null); setIsDeleting(false); }} title="예약 정보">
+                {selectedReservation && (
+                    <div className="space-y-4 p-1">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">차량</label>
+                            <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground">
+                                {selectedReservation.car}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">예약자</label>
+                            <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground">
+                                {selectedReservation.user === "hongilee@mangoslab.com" ? "이홍길" : selectedReservation.user}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">시작 시간</label>
+                                <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground">
+                                    {selectedReservation.date} {selectedReservation.startTime}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">종료 시간</label>
+                                <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground">
+                                    {selectedReservation.date} {selectedReservation.endTime}
+                                </div>
+                            </div>
+                        </div>
+                        {selectedReservation.purpose && (
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">목적</label>
+                                <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground">
+                                    {selectedReservation.purpose}
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex justify-end gap-3 pt-6 border-t border-white/5 mt-6">
+                            {isDeleting ? (
+                                <div className="flex items-center justify-between w-full">
+                                    <span className="text-sm font-bold text-red-400">정말 삭제하시겠습니까?</span>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDeleting(false)}
+                                            className="px-4 py-2 bg-secondary/50 hover:bg-secondary text-foreground rounded-xl text-xs font-bold transition-all border border-white/5"
+                                        >
+                                            아니오
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleDeleteReservation}
+                                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-red-500/20"
+                                        >
+                                            예, 삭제합니다
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsDeleting(true)}
+                                        className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-sm font-bold transition-all"
+                                    >
+                                        삭제
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsDetailsModalOpen(false); setSelectedReservation(null); setIsDeleting(false); }}
+                                        className="px-6 py-3 bg-secondary/50 hover:bg-secondary text-foreground rounded-xl text-sm font-bold transition-all border border-white/5"
+                                    >
+                                        닫기
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

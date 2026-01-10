@@ -6,10 +6,7 @@ import Modal from "@/components/Modal";
 
 // Mock Data
 const vehicles = [
-    { id: 1, model: "쏘렌토", plate: "195하4504", year: "2023", fuel: "가솔린", parkingRecord: true, department: "영업팀" },
-    { id: 2, model: "아반떼", plate: "123가4567", year: "2022", fuel: "가솔린", parkingRecord: true, department: "공용" },
-    { id: 3, model: "카니발", plate: "333루3333", year: "2023", fuel: "디젤", parkingRecord: true, department: "임원 수행" },
-    { id: 4, model: "그랜저", plate: "999호9999", year: "2024", fuel: "하이브리드", parkingRecord: false, department: "대표이사" },
+    { id: 1, model: "쏘렌토", plate: "195하4504", year: "2023", fuel: "가솔린", parkingRecord: true, department: "망고슬래브" },
 ];
 
 export default function VehicleManagement() {
@@ -91,11 +88,11 @@ export default function VehicleManagement() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs font-medium">
                             <tr>
-                                <th className="px-6 py-4">차량정보</th>
-                                <th className="px-6 py-4">연식/연료</th>
-                                <th className="px-6 py-4">부서/용도</th>
-                                <th className="px-6 py-4 text-center">주차위치 기록</th>
-                                <th className="px-6 py-4 text-right">관리</th>
+                                <th className="px-6 py-4 min-w-[200px]">차량정보</th>
+                                <th className="px-6 py-4 min-w-[150px] whitespace-nowrap">연식/연료</th>
+                                <th className="px-6 py-4 min-w-[120px] whitespace-nowrap">부서/용도</th>
+                                <th className="px-6 py-4 text-center min-w-[120px] whitespace-nowrap">주차위치 기록</th>
+                                <th className="px-6 py-4 text-right min-w-[80px]">관리</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -112,7 +109,7 @@ export default function VehicleManagement() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-muted-foreground">
+                                    <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
                                         {v.year}년식 <span className="text-muted-foreground mx-1">|</span> {v.fuel}
                                     </td>
                                     <td className="px-6 py-4">
