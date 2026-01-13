@@ -82,7 +82,7 @@ export default function Sidebar() {
                     </div>
 
                     {/* Admin Section */}
-                    {user?.role === "admin" && (
+                    {(user?.role === "admin" || user?.role === "superadmin") && (
                         <div className="space-y-1">
                             <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                                 관리자 메뉴

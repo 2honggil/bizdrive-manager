@@ -4,12 +4,18 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, AlertCircle } from "lucide-react";
 import Modal from "@/components/Modal";
 
+import { db } from "@/lib/firebase";
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
+
 // Mock reservation data with full date strings
 const initialReservations: any[] = [];
 
 export default function Reservations() {
+    const { user } = useAuth();
     const today = new Date(2026, 0, 9);
-    const [reservationList, setReservationList] = useState(initialReservations);
+    const [reservationList, setReservationList] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [viewDate, setViewDate] = useState(new Date(2026, 0, 1)); // Target month start
     const [viewMode, setViewMode] = useState<"month" | "week">("month");
     const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
@@ -17,27 +23,23 @@ export default function Reservations() {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // Get current user - in a real app this would come from auth context
-    const currentUser = "이홍길"; // Display name instead of email
-
-    // Load reservations from localStorage on mount
+    // Sync from Firestore
     useEffect(() => {
-        const saved = localStorage.getItem('bizdrive-reservations');
-        if (saved) {
-            try {
-                setReservationList(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to load reservations', e);
-            }
-        }
+        const q = query(collection(db, "reservations"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const resData: any[] = [];
+            querySnapshot.forEach((doc) => {
+                resData.push({ ...doc.data(), id: doc.id });
+            });
+            setReservationList(resData);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching reservations:", error);
+            setError("데이터를 불러오는 중 오류가 발생했습니다. (Console 확인)");
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
     }, []);
-
-    // Save reservations to localStorage whenever they change
-    useEffect(() => {
-        if (reservationList.length > 0) {
-            localStorage.setItem('bizdrive-reservations', JSON.stringify(reservationList));
-        }
-    }, [reservationList]);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -117,26 +119,26 @@ export default function Reservations() {
         const colors = ['bg-indigo-600', 'bg-orange-500', 'bg-green-600', 'bg-blue-600', 'bg-purple-600'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-        const newReservation = {
-            id: reservationList.length > 0 ? Math.max(...reservationList.map((r: any) => r.id)) + 1 : 1,
+        addDoc(collection(db, "reservations"), {
             car: formData.car,
-            user: currentUser,
+            user: user?.name || "사용자",
+            email: user?.email || "",
             purpose: formData.purpose,
             date: formData.startDate,
             startTime: formData.startTime,
             endTime: formData.endTime,
             status: "confirmed",
-            color: randomColor
-        };
-
-        setReservationList([...reservationList, newReservation]);
-
-        // Update localStorage
-        const updatedList = [...reservationList, newReservation];
-        localStorage.setItem('bizdrive-reservations', JSON.stringify(updatedList));
-
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new Event('reservations-changed'));
+            color: randomColor,
+            createdAt: Timestamp.now()
+        }).then(() => {
+            // Dispatch custom event to notify other components
+            window.dispatchEvent(new Event('reservations-changed'));
+            setIsReserveModalOpen(false);
+        }).catch(err => {
+            console.error("Error adding reservation: ", err);
+            setError("예약 저장 중 오류가 발생했습니다: " + err);
+            alert("저장 실패: " + err);
+        });
 
         setIsReserveModalOpen(false);
 
@@ -152,28 +154,24 @@ export default function Reservations() {
         setError(null);
     };
 
-    const handleDeleteReservation = () => {
+    const handleDeleteReservation = async () => {
         if (!selectedReservation) {
             return;
         }
 
-        const updatedList = reservationList.filter((r: any) => r.id !== selectedReservation.id);
+        try {
+            await deleteDoc(doc(db, "reservations", selectedReservation.id));
 
-        setReservationList(updatedList);
+            // Dispatch custom event to notify other components
+            window.dispatchEvent(new Event('reservations-changed'));
 
-        // Update localStorage
-        if (updatedList.length > 0) {
-            localStorage.setItem('bizdrive-reservations', JSON.stringify(updatedList));
-        } else {
-            localStorage.removeItem('bizdrive-reservations');
+            setIsDetailsModalOpen(false);
+            setSelectedReservation(null);
+            setIsDeleting(false);
+        } catch (err) {
+            console.error("Error deleting reservation: ", err);
+            alert("삭제 중 오류가 발생했습니다.");
         }
-
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new Event('reservations-changed'));
-
-        setIsDetailsModalOpen(false);
-        setSelectedReservation(null);
-        setIsDeleting(false);
     };
 
     const renderCalendarDays = () => {

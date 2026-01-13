@@ -1,40 +1,129 @@
 "use client";
 
-import { MapPin, Camera, Navigation, Car, AlertCircle, Plus, ChevronDown } from "lucide-react";
-import { useState } from "react";
-import Modal from "@/components/Modal";
+import { MapPin, Camera, Car, AlertCircle, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import Modal from "@/components/Modal"; // Keep Modal import if we want to add viewing details later, though manual assignment is being replaced/hidden
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
-import { parkingZones, lastParked } from "@/lib/mockData";
+// Helper to parse "Building (Detail)" format
+const parseLocation = (parkingStr: string) => {
+    if (!parkingStr) return { building: "미지정", detail: "-" };
+
+    // Known complex building names
+    const knownComplexBuildings = ["본사 (파미어스몰)"];
+
+    // Check if it starts with a known building and has a detail
+    for (const known of knownComplexBuildings) {
+        if (parkingStr.startsWith(known)) {
+            // If exactly matches, detail is empty or default
+            if (parkingStr === known) return { building: known, detail: "-" };
+
+            // If has extra, assume "Known (Detail)" format where known has parens
+            // But simpler: just use the robust lastIndexOf logic below, 
+            // BUT we need to be careful if result splits the Known name.
+
+            // Let's rely on the lastIndexOf logic but ensure we don't split INSIDE the known name
+            // Actually, the "본사 (파미어스몰)" case usually comes as "본사 (파미어스몰) (B4 J50)"
+            // lastIndexOf(' (') would find the last one, which is correct.
+            // But if it is JUST "본사 (파미어스몰)", lastIndexOf(' (') is index 3.
+            // Then building becomes "본사", detail "파미어스몰". WRONG.
+        }
+    }
+
+    // Improved logic:
+    // 1. Try to split by last " ("
+    const lastParenIndex = parkingStr.lastIndexOf(' (');
+
+    if (lastParenIndex > -1 && parkingStr.endsWith(')')) {
+        const potentialBuilding = parkingStr.substring(0, lastParenIndex);
+        const potentialDetail = parkingStr.substring(lastParenIndex + 2, parkingStr.length - 1);
+
+        // Check if the potential building splits a known complex building name
+        // e.g. "본사" is formed because we split "본사 (파미어스몰)"
+        if (parkingStr === "본사 (파미어스몰)") {
+            return { building: parkingStr, detail: "-" };
+        }
+
+        return { building: potentialBuilding, detail: potentialDetail };
+    }
+
+    return { building: parkingStr, detail: "-" };
+};
 
 export default function ParkingPage() {
-    const [zones, setZones] = useState(parkingZones);
-    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-    const [selectedSpot, setSelectedSpot] = useState<any>(null);
-    const [formData, setFormData] = useState({ car: "", time: "09:00" });
+    const [zones, setZones] = useState<any[]>([]);
+    const [vehicleLocations, setVehicleLocations] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-    const handleSpotClick = (zoneName: string, spot: any) => {
-        setSelectedSpot({ zoneName, ...spot });
-        setFormData({ car: spot.car || "", time: spot.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) });
-        setIsAssignModalOpen(true);
-    };
+    // Sync from Firestore Logs
+    useEffect(() => {
+        // Query logs to get latest locations
+        const q = query(collection(db, "logs"), orderBy("date", "desc"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const latestLogsByName: Record<string, any> = {};
 
-    const handleAssign = (e: React.FormEvent) => {
-        e.preventDefault();
-        setZones(zones.map(zone => {
-            if (zone.name === selectedSpot.zoneName) {
-                return {
-                    ...zone,
-                    spots: zone.spots.map(s => {
-                        if (s.id === selectedSpot.id) {
-                            return { ...s, car: formData.car, status: formData.car ? 'occupied' : 'empty', time: formData.time };
-                        }
-                        return s;
-                    })
-                };
-            }
-            return zone;
-        }));
-        setIsAssignModalOpen(false);
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                // If we haven't seen this car yet, this is the latest log (due to order by date desc)
+                // Note: If multiple logs have same date, order might be arbitrary unless we sort by createdAt too.
+                // Assuming date is enough or strictly sequential.
+                if (!latestLogsByName[data.car]) {
+                    latestLogsByName[data.car] = { ...data, id: doc.id };
+                }
+            });
+
+            // Construct Zones and List Data
+            const newZonesMap: Record<string, any[]> = {};
+            const newList: any[] = [];
+
+            Object.values(latestLogsByName).forEach(log => {
+                const { building, detail } = parseLocation(log.parking);
+
+                // Add to List View Data
+                newList.push({
+                    car: log.car,
+                    location: `${building} ${detail}`,
+                    time: log.date,
+                    driver: log.driver,
+                    photo: log.hasPhoto,
+                    photoUrl: log.photoUrl
+                });
+
+                // Add to Zone Data
+                if (!newZonesMap[building]) {
+                    newZonesMap[building] = [];
+                }
+                newZonesMap[building].push({
+                    id: detail,
+                    status: 'occupied',
+                    car: log.car,
+                    time: log.date,
+                    driver: log.driver, // Added driver info to spot
+                    photoUrl: log.photoUrl
+                });
+            });
+
+            // Convert map to array
+            const newZones = Object.keys(newZonesMap).map(buildingName => ({
+                name: buildingName,
+                spots: newZonesMap[buildingName]
+            }));
+
+            setZones(newZones);
+            setVehicleLocations(newList);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const viewPhoto = (url: string) => {
+        if (url) {
+            setSelectedPhoto(url);
+            setIsPhotoModalOpen(true);
+        }
     };
 
     return (
@@ -46,51 +135,78 @@ export default function ParkingPage() {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary border border-border rounded-full text-xs text-muted-foreground">
                     <AlertCircle className="h-3 w-3" />
-                    <span>마지막 운행 종료 시 입력된 정보입니다.</span>
+                    <span>운행 기록에 따라 자동으로 업데이트됩니다.</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6">
                 {/* Dynamic Visual Map */}
-                <div className="lg:col-span-2 space-y-6">
-                    {parkingZones.map((zone) => (
-                        <div key={zone.name} className="glass-card rounded-xl p-5 border border-border">
-                            <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-primary" />
-                                {zone.name}
-                            </h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                {zone.spots.map((spot) => {
-                                    return (
-                                        <button
-                                            key={spot.id}
-                                            onClick={() => handleSpotClick(zone.name, spot)}
-                                            className={`relative aspect-square rounded-xl border flex flex-col items-center justify-center p-2 text-center transition-all hover:scale-[1.02] ${spot.status === 'empty'
-                                                ? 'bg-secondary/30 border-dashed border-border text-muted-foreground hover:bg-secondary/50'
-                                                : 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5'
+                <div className="space-y-6">
+                    {zones.length === 0 ? (
+                        <div className="glass-card rounded-xl p-10 border border-border text-center">
+                            <p className="text-muted-foreground">주차된 차량 정보가 없습니다.</p>
+                        </div>
+                    ) : (
+                        zones.map((zone) => (
+                            <div key={zone.name} className="glass-card rounded-xl p-6 border border-border">
+                                <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+                                    <MapPin className="h-5 w-5 text-primary" />
+                                    {zone.name}
+                                </h3>
+                                {/* Use a flexible grid that adapts to content but prefers larger items */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {zone.spots.map((spot: any, index: number) => (
+                                        <div
+                                            key={`${spot.id}-${index}`}
+                                            onClick={() => spot.photoUrl && viewPhoto(spot.photoUrl)}
+                                            className={`relative aspect-[4/3] rounded-2xl border flex flex-col items-center justify-center p-4 text-center shadow-xl transition-all duration-300 hover:scale-[1.02] overflow-hidden group ${spot.photoUrl
+                                                    ? 'border-primary/50 cursor-pointer hover:shadow-primary/20'
+                                                    : 'bg-primary/10 border-primary/30 shadow-primary/5'
                                                 }`}
                                         >
-                                            <span className="absolute top-2 left-3 text-[10px] font-black tracking-tighter text-muted-foreground/60">
-                                                {spot.id}
-                                            </span>
-                                            {spot.status === 'empty' ? (
-                                                <Plus className="h-6 w-6 text-muted-foreground/30" />
-                                            ) : (
+                                            {/* Background Image if available */}
+                                            {spot.photoUrl && (
                                                 <>
-                                                    <Car className="h-8 w-8 text-primary mb-2 drop-shadow-sm" />
-                                                    <p className="text-[10px] font-black text-foreground truncate w-full">{spot.car?.split(' ')[0]}</p>
-                                                    <p className="text-[8px] text-muted-foreground truncate w-full tracking-tighter">{spot.car?.split(' ')[1]}</p>
-                                                    <div className="mt-1 px-1.5 py-0.5 bg-primary/20 rounded text-[8px] font-bold text-primary">
-                                                        {spot.time}
-                                                    </div>
+                                                    <div
+                                                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                                                        style={{ backgroundImage: `url(${spot.photoUrl})` }}
+                                                    />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
                                                 </>
                                             )}
-                                        </button>
-                                    );
-                                })}
+
+                                            {/* Content Layer */}
+                                            <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                                                <span className={`absolute top-0 left-0 text-xs font-black tracking-tighter ${spot.photoUrl ? 'text-white/80' : 'text-muted-foreground/60'}`}>
+                                                    {spot.id === '-' ? '미지정' : spot.id}
+                                                </span>
+
+                                                {!spot.photoUrl && <Car className="h-12 w-12 text-primary mb-3 drop-shadow-md" />}
+
+                                                <div className="flex flex-col items-center justify-center flex-1 w-full">
+                                                    <p className={`text-2xl font-black truncate w-full mb-1 ${spot.photoUrl ? 'text-white drop-shadow-lg' : 'text-foreground'}`}>
+                                                        {spot.car?.split(' ')[0]}
+                                                    </p>
+                                                    <p className={`text-sm truncate w-full tracking-tighter mb-4 ${spot.photoUrl ? 'text-white/80 drop-shadow-md' : 'text-muted-foreground'}`}>
+                                                        {spot.car?.split(' ')[1]}
+                                                    </p>
+                                                </div>
+
+                                                <div className="mt-auto flex items-center gap-2 w-full justify-center">
+                                                    <div className={`px-2 py-1 rounded text-[10px] font-bold ${spot.photoUrl ? 'bg-black/50 text-white border border-white/20 backdrop-blur-sm' : 'bg-primary/20 text-primary'}`}>
+                                                        {spot.time}
+                                                    </div>
+                                                    <div className={`px-2 py-1 rounded text-[10px] font-bold border ${spot.photoUrl ? 'bg-black/50 text-white/90 border-white/20 backdrop-blur-sm' : 'bg-secondary text-muted-foreground border-border'}`}>
+                                                        {spot.driver}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
 
                 {/* List View */}
@@ -99,72 +215,62 @@ export default function ParkingPage() {
                         <h3 className="font-semibold text-foreground">차량별 위치 목록</h3>
                     </div>
                     <div className="divide-y divide-border">
-                        {lastParked.map((item, i) => (
-                            <div key={i} className="p-4 hover:bg-secondary/30 transition-colors">
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="font-medium text-foreground text-sm">{item.car.split(' ')[0]}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded ${item.location === '출차 중' ? 'bg-secondary text-muted-foreground' : 'bg-primary/10 text-primary border border-primary/20'
-                                        }`}>
-                                        {item.location}
-                                    </span>
-                                </div>
-                                <p className="text-xs text-muted-foreground mb-2">{item.car.split(' ')[1]}</p>
-
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <div className="flex items-center gap-2">
-                                        <span>{item.time}</span>
-                                        <span className="w-0.5 h-2 bg-border"></span>
-                                        <span>{item.driver}</span>
-                                    </div>
-                                    {item.photo && (
-                                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-                                            <Camera className="h-3 w-3" />
-                                            <span>사진 보기</span>
-                                        </button>
+                        {vehicleLocations.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-muted-foreground">기록 없음</div>
+                        ) : (
+                            vehicleLocations.map((item, i) => (
+                                <div key={i} className="p-4 hover:bg-secondary/30 transition-colors flex items-center gap-4">
+                                    {/* Thumbnail */}
+                                    {item.photoUrl ? (
+                                        <div
+                                            className="h-12 w-16 rounded-lg bg-cover bg-center shrink-0 border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                                            style={{ backgroundImage: `url(${item.photoUrl})` }}
+                                            onClick={() => viewPhoto(item.photoUrl)}
+                                        />
+                                    ) : (
+                                        <div className="h-12 w-16 rounded-lg bg-secondary/50 flex items-center justify-center shrink-0 border border-border">
+                                            <Car className="h-6 w-6 text-muted-foreground/30" />
+                                        </div>
                                     )}
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="font-medium text-foreground text-sm">{item.car.split(' ')[0]}</span>
+                                            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                                {item.location}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mb-1">{item.car.split(' ')[1]}</p>
+
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span>{item.time}</span>
+                                            <span className="w-0.5 h-2 bg-border"></span>
+                                            <span>{item.driver}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
-
-            <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} title="주차 위치 배정">
-                <form className="space-y-4" onSubmit={handleAssign}>
-                    <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl mb-4">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">배정 위치</p>
-                        <p className="text-sm font-black text-foreground">{selectedSpot?.zoneName} - {selectedSpot?.id}번 구역</p>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">배정 차량</label>
-                        <select
-                            value={formData.car}
-                            onChange={(e) => setFormData({ ...formData, car: e.target.value })}
-                            className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                        >
-                            <option value="">비어 있음 (출차)</option>
-                            <option>쏘렌토 (195하4504)</option>
-                            <option>아반떼 (123가4567)</option>
-                            <option>카니발 (333루3333)</option>
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">주차 시간</label>
-                        <input
-                            type="time"
-                            value={formData.time}
-                            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                            className="w-full px-4 py-2 bg-secondary/80 border border-primary/30 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                        <button type="button" onClick={() => setIsAssignModalOpen(false)} className="px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border">취소</button>
-                        <button type="submit" className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors">배정 완료</button>
-                    </div>
-                </form>
+            {/* Photo Viewer Modal */}
+            <Modal isOpen={isPhotoModalOpen} onClose={() => setIsPhotoModalOpen(false)} title="주차 위치 사진" size="md">
+                <div className="flex items-center justify-center p-2">
+                    {selectedPhoto ? (
+                        <img src={selectedPhoto} alt="Parking Location" className="max-w-full h-auto rounded-lg shadow-2xl" />
+                    ) : (
+                        <p className="text-muted-foreground">사진이 없습니다.</p>
+                    )}
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button
+                        onClick={() => setIsPhotoModalOpen(false)}
+                        className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
+                    >
+                        닫기
+                    </button>
+                </div>
             </Modal>
         </div>
     );

@@ -2,14 +2,31 @@
 
 
 import { Fuel, DollarSign, Download, Plus, Search, Filter, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { fuelMockData } from "@/lib/mockData";
 
 export default function FuelTokensPage() {
-    const [fuelData, setFuelData] = useState(fuelMockData);
+    const [fuelData, setFuelData] = useState<any[]>(fuelMockData);
+    const [isLoading, setIsLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // Sync from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "fueling"), orderBy("date", "desc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data: any[] = [];
+            snapshot.forEach((doc) => {
+                data.push({ ...doc.data(), id: doc.id });
+            });
+            setFuelData(data.length > 0 ? data : fuelMockData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Filtering State
     const [selectedYear, setSelectedYear] = useState("전체");
@@ -56,18 +73,17 @@ export default function FuelTokensPage() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const newRecord = {
-            id: fuelData.length + 1,
+        addDoc(collection(db, "fueling"), {
             date: formData.date.replace(/-/g, '.'),
             car: formData.car,
             type: formData.type,
             amount: Number(formData.amount).toLocaleString(),
             location: formData.location || "기타 장소",
-            driver: formData.driver
-        };
-
-        setFuelData([newRecord, ...fuelData]);
-        setIsAddModalOpen(false);
+            driver: formData.driver,
+            createdAt: Timestamp.now()
+        }).then(() => {
+            setIsAddModalOpen(false);
+        }).catch(err => console.error("Error adding fueling record: ", err));
 
         // Reset form
         setFormData({

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Filter, Download, Plus, MapPin, Camera, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, MoreHorizontal, Edit, Trash } from "lucide-react";
 import Modal from "@/components/Modal";
 
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
 import { mockLogs, frequentDestinations } from "@/lib/mockData";
 
 // Define accessible vehicles centrally for this view
@@ -14,12 +16,29 @@ const vehicles = [
 ];
 
 export default function VehicleLogs() {
-    const [logs, setLogs] = useState(mockLogs);
+    const [logs, setLogs] = useState<any[]>(mockLogs);
+    const [isLoading, setIsLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-    const [editingId, setEditingId] = useState<number | null>(null);
-    const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | number | null>(null);
+    const [activeMenuId, setActiveMenuId] = useState<string | number | null>(null);
+
+    // Sync from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "logs"), orderBy("date", "desc"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const logsData: any[] = [];
+            querySnapshot.forEach((doc) => {
+                logsData.push({ ...doc.data(), id: doc.id });
+            });
+
+            // Robust fallback: Always use mockLogs if Firestore is empty
+            setLogs(logsData.length > 0 ? logsData : mockLogs);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Filtering State
     const [selectedYear, setSelectedYear] = useState("2026");
@@ -80,8 +99,30 @@ export default function VehicleLogs() {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setCapturedPhoto(reader.result as string);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Resize to max 800px width
+                    const MAX_WIDTH = 800;
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    // Compress to JPEG with 0.7 quality
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    setCapturedPhoto(dataUrl);
+                };
+                img.src = event.target?.result as string;
             };
             reader.readAsDataURL(file);
         }
@@ -98,29 +139,10 @@ export default function VehicleLogs() {
             return;
         }
 
-        if (editingId !== null) {
-            // Update existing log
-            setLogs(prevLogs => prevLogs.map(log =>
-                log.id === editingId
-                    ? {
-                        ...log,
-                        date: formData.date.replace(/-/g, '.'),
-                        car: formData.car || vehicles[0].name,
-                        driver: formData.driver,
-                        purpose: formData.purpose,
-                        route: `${formData.origin} -> ${formData.destination}`,
-                        startKm: startKm,
-                        endKm: endKm,
-                        parking: formData.parkingDetail ? `${formData.parkingBuilding} (${formData.parkingDetail})` : formData.parkingBuilding,
-                        hasPhoto: !!capturedPhoto,
-                        photoUrl: capturedPhoto
-                    }
-                    : log
-            ));
-        } else {
-            // Add new log
-            const newLog = {
-                id: Date.now(), // More robust ID for client-side mocks
+        if (editingId !== null && typeof editingId === 'string') {
+            // Update in Firestore
+            const logRef = doc(db, "logs", editingId);
+            updateDoc(logRef, {
                 date: formData.date.replace(/-/g, '.'),
                 car: formData.car || vehicles[0].name,
                 driver: formData.driver,
@@ -131,8 +153,22 @@ export default function VehicleLogs() {
                 parking: formData.parkingDetail ? `${formData.parkingBuilding} (${formData.parkingDetail})` : formData.parkingBuilding,
                 hasPhoto: !!capturedPhoto,
                 photoUrl: capturedPhoto
-            };
-            setLogs([newLog, ...logs]);
+            }).catch(err => console.error("Error updating document: ", err));
+        } else {
+            // Add to Firestore
+            addDoc(collection(db, "logs"), {
+                date: formData.date.replace(/-/g, '.'),
+                car: formData.car || vehicles[0].name,
+                driver: formData.driver,
+                purpose: formData.purpose,
+                route: `${formData.origin} -> ${formData.destination}`,
+                startKm: startKm,
+                endKm: endKm,
+                parking: formData.parkingDetail ? `${formData.parkingBuilding} (${formData.parkingDetail})` : formData.parkingBuilding,
+                hasPhoto: !!capturedPhoto,
+                photoUrl: capturedPhoto,
+                createdAt: Timestamp.now()
+            }).catch(err => console.error("Error adding document: ", err));
         }
 
         setIsAddModalOpen(false);
@@ -162,16 +198,40 @@ export default function VehicleLogs() {
         }
     };
 
-    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [deletingId, setDeletingId] = useState<string | number | null>(null);
 
-    const handleDelete = (id: number) => {
-        setLogs(logs.filter(log => log.id !== id));
+    const handleDelete = async (id: string | number) => {
+        if (typeof id === 'string') {
+            await deleteDoc(doc(db, "logs", id));
+        } else {
+            setLogs(logs.filter(log => log.id !== id));
+        }
         setDeletingId(null);
         setActiveMenuId(null);
     };
 
     const handleEdit = (log: any) => {
         setEditingId(log.id);
+
+        // Parse parking string safely
+        let parkingBuilding = log.parking;
+        let parkingDetail = "";
+
+        // Known complex building names that should be treated as a whole if they match exactly
+        const knownComplexBuildings = ["본사 (파미어스몰)"];
+
+        if (knownComplexBuildings.includes(log.parking)) {
+            parkingBuilding = log.parking;
+            parkingDetail = "";
+        } else {
+            // Try to split by the *last* occurrence of " (" to handle "Building (Name) (Detail)"
+            const lastParenIndex = log.parking.lastIndexOf(' (');
+            if (lastParenIndex > -1 && log.parking.endsWith(')')) {
+                parkingBuilding = log.parking.substring(0, lastParenIndex);
+                parkingDetail = log.parking.substring(lastParenIndex + 2, log.parking.length - 1);
+            }
+        }
+
         setFormData({
             date: log.date.replace(/\./g, '-'),
             car: log.car,
@@ -181,8 +241,8 @@ export default function VehicleLogs() {
             destination: log.route.split(' -> ')[1] || "",
             startKm: log.startKm.toString(),
             endKm: log.endKm.toString(),
-            parkingBuilding: log.parking.includes(' (') ? log.parking.split(' (')[0] : log.parking,
-            parkingDetail: log.parking.includes(' (') ? log.parking.split(' (')[1].replace(')', '') : "",
+            parkingBuilding,
+            parkingDetail,
         });
         setCapturedPhoto(log.photoUrl || null);
         setIsAddModalOpen(true);
@@ -621,7 +681,7 @@ export default function VehicleLogs() {
 
             {/* Table */}
             <div className="glass-card rounded-xl overflow-hidden border border-border">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto pb-32">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs font-medium">
                             <tr>
@@ -686,7 +746,7 @@ export default function VehicleLogs() {
                                         </button>
 
                                         {activeMenuId === log.id && (
-                                            <div className="absolute right-4 top-10 w-32 bg-card border border-border rounded-lg shadow-xl z-20 overflow-hidden flex flex-col">
+                                            <div className="absolute right-4 top-10 w-32 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden flex flex-col">
                                                 {deletingId === log.id ? (
                                                     <div className="p-2 flex flex-col gap-2">
                                                         <span className="text-[10px] text-red-500 font-bold px-1">정말 삭제할까요?</span>

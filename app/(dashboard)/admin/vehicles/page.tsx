@@ -1,8 +1,11 @@
 "use client";
 
 import { Search, Plus, Car, Edit, Trash, ToggleRight, ToggleLeft } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
+
+import { db } from "@/lib/firebase";
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
 
 // Mock Data
 const vehicles = [
@@ -11,6 +14,30 @@ const vehicles = [
 
 export default function VehicleManagement() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [vehicleList, setVehicleList] = useState<any[]>(vehicles);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Sync from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "vehicles"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data: any[] = [];
+            snapshot.forEach((doc) => {
+                data.push({ ...doc.data(), id: doc.id });
+            });
+            setVehicleList(data.length > 0 ? data : vehicles);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleDelete = async (id: string | number) => {
+        if (typeof id === 'string') {
+            await deleteDoc(doc(db, "vehicles", id));
+        } else {
+            setVehicleList(vehicleList.filter(v => v.id !== id));
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -78,7 +105,7 @@ export default function VehicleManagement() {
                     />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                    총 <span className="text-foreground font-bold">{vehicles.length}</span>대 등록됨
+                    총 <span className="text-foreground font-bold">{vehicleList.length}</span>대 등록됨
                 </div>
             </div>
 
@@ -96,7 +123,7 @@ export default function VehicleManagement() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {vehicles.map((v) => (
+                            {vehicleList.map((v) => (
                                 <tr key={v.id} className="hover:bg-secondary/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -136,7 +163,10 @@ export default function VehicleManagement() {
                                             <button className="p-2 hover:bg-secondary rounded text-muted-foreground hover:text-foreground transition-colors">
                                                 <Edit className="h-4 w-4" />
                                             </button>
-                                            <button className="p-2 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors">
+                                            <button
+                                                onClick={() => handleDelete(v.id)}
+                                                className="p-2 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
+                                            >
                                                 <Trash className="h-4 w-4" />
                                             </button>
                                         </div>

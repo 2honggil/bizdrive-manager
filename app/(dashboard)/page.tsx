@@ -4,85 +4,92 @@ import { Car, Fuel, Calendar, ArrowUpRight, ArrowDownRight, MoreHorizontal } fro
 
 import { mockLogs, fuelMockData } from "@/lib/mockData";
 import { useMemo, useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 
 export default function Dashboard() {
     const [reservationCount, setReservationCount] = useState(0);
     const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
 
-    // Load reservations from localStorage
+    const [logs, setLogs] = useState<any[]>(mockLogs);
+    const [fuelData, setFuelData] = useState<any[]>(fuelMockData);
+    const [reservations, setReservations] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const parseDateStr = (dateStr: string) => {
+        if (!dateStr) return new Date();
+        // Handle YYYY.MM.DD or YYYY-MM-DD
+        const parts = dateStr.includes('.') ? dateStr.split('.') : dateStr.split('-');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        }
+        return new Date(dateStr);
+    };
+
+    // Sync from Firestore
     useEffect(() => {
-        const loadReservations = () => {
-            const saved = localStorage.getItem('bizdrive-reservations');
-            if (saved) {
-                try {
-                    const reservations = JSON.parse(saved);
-                    // Count upcoming reservations (today or later)
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const upcoming = reservations.filter((res: any) => {
-                        const resDate = new Date(res.date);
-                        return resDate >= today;
-                    }).sort((a: any, b: any) => {
-                        const dateCompare = a.date.localeCompare(b.date);
-                        if (dateCompare !== 0) return dateCompare;
-                        return a.startTime.localeCompare(b.startTime);
-                    });
+        const qLogs = query(collection(db, "logs"), orderBy("date", "desc"));
+        const qFuel = query(collection(db, "fueling"), orderBy("date", "desc"));
+        const qRes = query(collection(db, "reservations"));
 
-                    setReservationCount(upcoming.length);
-                    setUpcomingReservations(upcoming.slice(0, 3)); // Show top 3
-                } catch (e) {
-                    console.error('Failed to load reservations', e);
-                }
-            } else {
-                setReservationCount(0);
-                setUpcomingReservations([]);
-            }
-        };
+        const unsubLogs = onSnapshot(qLogs, (snap) => {
+            const data: any[] = []; snap.forEach(doc => data.push({ ...doc.data(), id: doc.id }));
+            setLogs(data.length > 0 ? data : mockLogs);
+        });
+        const unsubFuel = onSnapshot(qFuel, (snap) => {
+            const data: any[] = []; snap.forEach(doc => data.push({ ...doc.data(), id: doc.id }));
+            setFuelData(data.length > 0 ? data : fuelMockData);
+        });
+        const unsubRes = onSnapshot(qRes, (snap) => {
+            const data: any[] = []; snap.forEach(doc => data.push({ ...doc.data(), id: doc.id }));
+            setReservations(data);
 
-        // Initial load
-        loadReservations();
+            // Update upcoming reservations
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const upcoming = data.filter((res: any) => {
+                const resDate = new Date(res.date);
+                return resDate >= today;
+            }).sort((a: any, b: any) => {
+                const dateCompare = a.date.localeCompare(b.date);
+                if (dateCompare !== 0) return dateCompare;
+                return a.startTime.localeCompare(b.startTime);
+            });
+            setReservationCount(upcoming.length);
+            setUpcomingReservations(upcoming.slice(0, 3));
+        });
 
-        // Listen for storage changes (works across tabs)
-        window.addEventListener('storage', loadReservations);
-
-        // Listen for custom reservation changes (same tab)
-        window.addEventListener('reservations-changed', loadReservations);
-
-        // Listen for focus events (when user returns to tab)
-        window.addEventListener('focus', loadReservations);
-
-        return () => {
-            window.removeEventListener('storage', loadReservations);
-            window.removeEventListener('reservations-changed', loadReservations);
-            window.removeEventListener('focus', loadReservations);
-        };
+        return () => { unsubLogs(); unsubFuel(); unsubRes(); };
     }, []);
 
     // Calculate dashboard statistics
     const stats = useMemo(() => {
-        // 1. Determine "Current Month" based on the latest log (Jan 2026)
-        const sortedLogs = [...mockLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const latestLogDate = sortedLogs[0]?.date ? new Date(sortedLogs[0].date) : new Date();
-        const currentYear = latestLogDate.getFullYear();
-        const currentMonth = latestLogDate.getMonth() + 1; // 1-based
+        // Use January 2026 for demonstration as per context
+        const currentYear = 2026;
+        const currentMonth = 1;
 
         // Filter logs for the "Current Month"
-        const currentMonthLogs = mockLogs.filter(log => {
-            const d = new Date(log.date);
+        const currentMonthLogs = logs.filter(log => {
+            const d = parseDateStr(log.date);
             return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
         });
 
         // Total Distance (Current Month)
-        const totalDistance = currentMonthLogs.reduce((sum, log) => sum + (log.endKm - log.startKm), 0);
+        const totalDistance = currentMonthLogs.reduce((sum, log) => {
+            const start = Number(log.startKm) || 0;
+            const end = Number(log.endKm) || 0;
+            return sum + (end - start);
+        }, 0);
 
-        // Fuel Cost (Current Month) - Note: mockFuelData might be older, so this might be 0 if no match
-        // Let's assume we show the latest available month with data for Fuel if current is empty? 
-        // Or just show strict current month. Sticking to strict current month for accuracy.
-        const currentMonthFuel = fuelMockData.filter(item => {
-            const d = new Date(item.date);
+        // Fuel Cost (Current Month)
+        const currentMonthFuel = fuelData.filter(item => {
+            const d = parseDateStr(item.date);
             return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
         });
-        const totalFuelCost = currentMonthFuel.reduce((sum, item) => sum + parseInt(item.amount.replace(/,/g, ''), 10), 0);
+        const totalFuelCost = currentMonthFuel.reduce((sum, item) => {
+            const amountStr = typeof item.amount === 'string' ? item.amount : item.amount?.toString() || "0";
+            return sum + parseInt(amountStr.replace(/,/g, ''), 10);
+        }, 0);
 
         // Monthly Chart Data (Last 12 months)
         const chartData = Array.from({ length: 12 }, (_, i) => {
@@ -90,12 +97,16 @@ export default function Dashboard() {
             const y = d.getFullYear();
             const m = d.getMonth() + 1;
 
-            const monthLogs = mockLogs.filter(log => {
-                const ld = new Date(log.date);
+            const monthLogs = logs.filter(log => {
+                const ld = parseDateStr(log.date);
                 return ld.getFullYear() === y && (ld.getMonth() + 1) === m;
             });
 
-            const value = monthLogs.reduce((sum, log) => sum + (log.endKm - log.startKm), 0);
+            const value = monthLogs.reduce((sum, log) => {
+                const start = Number(log.startKm) || 0;
+                const end = Number(log.endKm) || 0;
+                return sum + (end - start);
+            }, 0);
 
             return {
                 month: `${m}월`,
@@ -104,23 +115,22 @@ export default function Dashboard() {
             };
         }).reverse();
 
-        // Utilization Rate Calculation
-        // (Number of unique days with operations / Total days in current month) x 100
         const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
         const uniqueOperatingDays = new Set(
             currentMonthLogs.map(log => {
-                const d = new Date(log.date);
+                const d = parseDateStr(log.date);
                 return d.getDate(); // Day of month (1-31)
             })
         ).size;
-        const utilizationRate = daysInMonth > 0 ? Math.round((uniqueOperatingDays / daysInMonth) * 100) : 0;
+        const maxUtilizationRate = daysInMonth > 0 ? Math.round((uniqueOperatingDays / daysInMonth) * 100) : 0;
+        const utilizationRate = Math.max(maxUtilizationRate, 0);
 
         // Last Month Utilization Rate
         const lastMonthDate = new Date(currentYear, currentMonth - 2, 1); // Previous month
         const lastMonthYear = lastMonthDate.getFullYear();
         const lastMonth = lastMonthDate.getMonth() + 1;
-        const lastMonthLogs = mockLogs.filter(log => {
-            const d = new Date(log.date);
+        const lastMonthLogs = logs.filter(log => {
+            const d = parseDateStr(log.date);
             return d.getFullYear() === lastMonthYear && (d.getMonth() + 1) === lastMonth;
         });
         const lastMonthDaysInMonth = new Date(lastMonthYear, lastMonth, 0).getDate();
@@ -130,16 +140,16 @@ export default function Dashboard() {
         const lastMonthUtilization = lastMonthDaysInMonth > 0 ? Math.round((lastMonthUniqueDays / lastMonthDaysInMonth) * 100) : 0;
 
         // Overall Average Utilization Rate (all months with data)
-        const monthsWithData = new Set(mockLogs.map(log => {
-            const d = new Date(log.date);
+        const monthsWithData = new Set(logs.map(log => {
+            const d = parseDateStr(log.date);
             return `${d.getFullYear()}-${d.getMonth() + 1}`;
         }));
 
         let totalUtilization = 0;
         monthsWithData.forEach(monthKey => {
             const [year, month] = monthKey.split('-').map(Number);
-            const monthLogs = mockLogs.filter(log => {
-                const d = new Date(log.date);
+            const monthLogs = logs.filter(log => {
+                const d = parseDateStr(log.date);
                 return d.getFullYear() === year && (d.getMonth() + 1) === month;
             });
             const daysInThisMonth = new Date(year, month, 0).getDate();
@@ -150,19 +160,23 @@ export default function Dashboard() {
 
         // Vehicle Status Data
         // Group by car
-        const cars = Array.from(new Set(mockLogs.map(l => l.car)));
+        const cars = Array.from(new Set(logs.map(l => l.car)));
         const vehicleStatus = cars.map(carName => {
-            const carLogs = mockLogs.filter(l => l.car === carName);
+            const carLogs = logs.filter(l => l.car === carName);
             // Sort desc
-            carLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            carLogs.sort((a, b) => parseDateStr(b.date).getTime() - parseDateStr(a.date).getTime());
 
-            const totalMileage = carLogs[0]?.endKm || 0;
+            const totalMileage = Number(carLogs[0]?.endKm) || 0;
 
             const thisMonthLogs = carLogs.filter(log => {
-                const d = new Date(log.date);
+                const d = parseDateStr(log.date);
                 return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
             });
-            const monthlyMileage = thisMonthLogs.reduce((sum, log) => sum + (log.endKm - log.startKm), 0);
+            const monthlyMileage = thisMonthLogs.reduce((sum, log) => {
+                const start = Number(log.startKm) || 0;
+                const end = Number(log.endKm) || 0;
+                return sum + (end - start);
+            }, 0);
 
             // Determine status based on recent activity (e.g., if used in last 3 days = In Use, else Standby)
             // This is a simple heuristic.
@@ -196,7 +210,7 @@ export default function Dashboard() {
             chartData,
             vehicleStatus
         };
-    }, []);
+    }, [logs, fuelData, reservations]);
 
     return (
         <div className="space-y-6">

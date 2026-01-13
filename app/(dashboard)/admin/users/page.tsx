@@ -1,12 +1,15 @@
 "use client";
 
 import { Search, Plus, User, MoreVertical, Shield, Edit, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
+
+import { db } from "@/lib/firebase";
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
 
 // Mock Data
 const initialUsers = [
-    { id: 1, name: "이홍길", email: "hongilee@mangoslab.com", role: "admin", department: "망고슬래브", status: "active" },
+    { id: 1, name: "이홍길", email: "hongilee@mangoslab.com", role: "superadmin", department: "망고슬래브", status: "active" },
     { id: 2, name: "김태연", email: "kim19707@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
     { id: 3, name: "김제봉", email: "chenwoo@chenwoo.co.kr", role: "admin", department: "천우주식회사", status: "active" },
     { id: 4, name: "김진아", email: "sweet@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
@@ -28,11 +31,26 @@ const initialUsers = [
 export default function UserManagement() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [users, setUsers] = useState(initialUsers);
+    const [users, setUsers] = useState<any[]>(initialUsers);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<any>(null);
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | number | null>(null);
 
-    const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+    const [deletingUserId, setDeletingUserId] = useState<string | number | null>(null);
+
+    // Sync from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "users"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data: any[] = [];
+            snapshot.forEach((doc) => {
+                data.push({ ...doc.data(), id: doc.id });
+            });
+            setUsers(data.length > 0 ? data : initialUsers);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const handleEdit = (user: any) => {
         setSelectedUser(user);
@@ -40,15 +58,28 @@ export default function UserManagement() {
         setOpenMenuId(null);
     };
 
-    const handleDelete = (userId: number) => {
-        setUsers(users.filter(u => u.id !== userId));
+    const handleDelete = async (userId: string | number) => {
+        if (typeof userId === 'string') {
+            await deleteDoc(doc(db, "users", userId));
+        } else {
+            setUsers(users.filter(u => u.id !== userId));
+        }
         setDeletingUserId(null);
         setOpenMenuId(null);
     };
 
-    const handleSaveUser = (e: React.FormEvent) => {
+    const handleSaveUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        setUsers(users.map(u => u.id === selectedUser.id ? selectedUser : u));
+        if (typeof selectedUser.id === 'string') {
+            const userRef = doc(db, "users", selectedUser.id);
+            await updateDoc(userRef, {
+                name: selectedUser.name,
+                email: selectedUser.email,
+                role: selectedUser.role,
+                department: selectedUser.department,
+                status: selectedUser.status
+            });
+        }
         setIsEditModalOpen(false);
     };
 
@@ -85,8 +116,8 @@ export default function UserManagement() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">부서</label>
-                            <input type="text" placeholder="영업팀" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                            <label className="text-sm font-medium text-foreground">소속 (회사/부서)</label>
+                            <input type="text" placeholder="예: 망고슬래브 / 영업팀" className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">권한</label>
@@ -94,6 +125,7 @@ export default function UserManagement() {
                                 <option value="">선택</option>
                                 <option value="user">일반 사용자</option>
                                 <option value="admin">관리자</option>
+                                <option value="superadmin">수퍼관리자</option>
                             </select>
                         </div>
                     </div>
@@ -130,7 +162,7 @@ export default function UserManagement() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-foreground">부서</label>
+                                <label className="text-sm font-medium text-foreground">소속 (회사/부서)</label>
                                 <input
                                     type="text"
                                     value={selectedUser.department}
@@ -148,6 +180,7 @@ export default function UserManagement() {
                                 >
                                     <option value="user">일반 사용자</option>
                                     <option value="admin">관리자</option>
+                                    <option value="superadmin">수퍼관리자</option>
                                 </select>
                             </div>
                         </div>
@@ -187,7 +220,7 @@ export default function UserManagement() {
                         <thead className="bg-secondary/50 text-muted-foreground uppercase text-xs font-medium">
                             <tr>
                                 <th className="px-6 py-4 min-w-[200px]">사용자</th>
-                                <th className="px-6 py-4 min-w-[120px] whitespace-nowrap">부서</th>
+                                <th className="px-6 py-4 min-w-[120px] whitespace-nowrap">소속</th>
                                 <th className="px-6 py-4 min-w-[100px] whitespace-nowrap">권한</th>
                                 <th className="px-6 py-4 min-w-[80px] whitespace-nowrap">상태</th>
                                 <th className="px-6 py-4 text-right min-w-[80px]">관리</th>
@@ -209,7 +242,11 @@ export default function UserManagement() {
                                     </td>
                                     <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{u.department}</td>
                                     <td className="px-6 py-4">
-                                        {u.role === 'admin' ? (
+                                        {u.role === 'superadmin' ? (
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary border border-primary/30">
+                                                <Shield className="h-3 w-3" /> 수퍼관리자
+                                            </span>
+                                        ) : u.role === 'admin' ? (
                                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
                                                 <Shield className="h-3 w-3" /> 관리자
                                             </span>

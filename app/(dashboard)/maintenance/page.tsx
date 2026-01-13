@@ -1,14 +1,31 @@
 "use client";
 
 import { Wrench, Calendar, AlertTriangle, Plus, Filter, ChevronDown, Search, Download } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { maintenanceData } from "@/lib/mockData";
 
 export default function MaintenancePage() {
-    const [maintenanceList, setMaintenanceList] = useState(maintenanceData);
+    const [maintenanceList, setMaintenanceList] = useState<any[]>(maintenanceData);
+    const [isLoading, setIsLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // Sync from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "maintenance"), orderBy("date", "desc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data: any[] = [];
+            snapshot.forEach((doc) => {
+                data.push({ ...doc.data(), id: doc.id });
+            });
+            setMaintenanceList(data.length > 0 ? data : maintenanceData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -23,18 +40,17 @@ export default function MaintenancePage() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const newRecord = {
-            id: maintenanceList.length + 1,
+        addDoc(collection(db, "maintenance"), {
             date: formData.date.replace(/-/g, '.'),
             car: formData.car,
             type: formData.type,
             km: `${Number(formData.km).toLocaleString()} km`,
             cost: `₩${Number(formData.cost).toLocaleString()}`,
-            note: formData.note
-        };
-
-        setMaintenanceList([newRecord, ...maintenanceList]);
-        setIsAddModalOpen(false);
+            note: formData.note,
+            createdAt: Timestamp.now()
+        }).then(() => {
+            setIsAddModalOpen(false);
+        }).catch(err => console.error("Error adding maintenance record: ", err));
 
         // Reset form
         setFormData({
