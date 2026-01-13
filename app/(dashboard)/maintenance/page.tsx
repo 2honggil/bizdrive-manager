@@ -5,16 +5,46 @@ import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, Timestamp, getDocs } from "firebase/firestore";
 import { maintenanceData } from "@/lib/mockData";
+import { useAuth } from "@/context/AuthContext";
 
 export default function MaintenancePage() {
+    const { user } = useAuth();
     const [maintenanceList, setMaintenanceList] = useState<any[]>(maintenanceData);
+    const [vehicles, setVehicles] = useState<any[]>([]); // Dynamic vehicles
     const [isLoading, setIsLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // Sync from Firestore
     useEffect(() => {
+        // Fetch Vehicles first
+        const fetchVehicles = async () => {
+            const q = query(collection(db, "vehicles"));
+            const querySnapshot = await getDocs(q);
+            const allVehicles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+
+            // Filter vehicles based on RBAC
+            let accessibleVehicles = [];
+            if (user?.role === "superadmin") {
+                accessibleVehicles = allVehicles;
+            } else {
+                accessibleVehicles = allVehicles.filter(v => v.department === user?.department);
+            }
+            // Fallback for demo if no DB data
+            if (accessibleVehicles.length === 0) {
+                accessibleVehicles = [{ id: 1, name: "쏘렌토 (195하4504)", department: "망고슬래브" }];
+                if (user?.department && user.department !== "망고슬래브") {
+                    accessibleVehicles = [];
+                }
+            }
+            setVehicles(accessibleVehicles);
+        };
+
+        if (user) {
+            fetchVehicles();
+        }
+
         const q = query(collection(db, "maintenance"), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data: any[] = [];
@@ -25,7 +55,7 @@ export default function MaintenancePage() {
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [user]);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -66,10 +96,15 @@ export default function MaintenancePage() {
     const [selectedVehicle, setSelectedVehicle] = useState("전체");
 
     // Derived Data
-    const uniqueYears = Array.from(new Set(maintenanceData.map(item => item.date.split('.')[0]))).sort((a, b) => b.localeCompare(a));
-    const uniqueVehicles = Array.from(new Set(maintenanceData.map(item => item.car))).sort();
+    const availableVehicleNames = vehicles.map(v => v.name || `${v.model} (${v.plate})`);
+
+    const uniqueYears = Array.from(new Set(maintenanceList.filter(item => availableVehicleNames.includes(item.car)).map(item => item.date.split('.')[0]))).sort((a, b) => b.localeCompare(a));
+    const uniqueVehicles = vehicles.map(v => v.name || `${v.model} (${v.plate})`).sort();
 
     const filteredMaintenanceData = maintenanceList.filter(item => {
+        // Data Isolation
+        if (!availableVehicleNames.includes(item.car)) return false;
+
         const itemYear = item.date.split('.')[0];
         const matchYear = selectedYear === "전체" || itemYear === selectedYear;
         const matchVehicle = selectedVehicle === "전체" || item.car === selectedVehicle;
@@ -171,10 +206,11 @@ export default function MaintenancePage() {
                                 className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                             >
                                 <option value="">선택</option>
-                                <option>쏘렌토 (195하4504)</option>
-                                <option>아반떼 (123가4567)</option>
-                                <option>카니발 (333루3333)</option>
-                                <option>그랜저 (999호9999)</option>
+                                {vehicles.map(v => (
+                                    <option key={v.id} value={v.name || `${v.model} (${v.plate})`}>
+                                        {v.name || `${v.model} (${v.plate})`}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>

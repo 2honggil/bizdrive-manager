@@ -12,10 +12,26 @@ const vehicles = [
     { id: 1, model: "쏘렌토", plate: "195하4504", year: "2023", fuel: "가솔린", parkingRecord: true, department: "망고슬래브" },
 ];
 
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+// ...
+
 export default function VehicleManagement() {
+    const { user, isLoading: authLoading } = useAuth(); // Rename isLoading to avoid conflict or use alias
+    const router = useRouter();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [vehicleList, setVehicleList] = useState<any[]>(vehicles);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Route Protection
+    useEffect(() => {
+        if (!authLoading && user?.role !== "superadmin") {
+            router.push("/"); // Redirect unauthorized users
+        }
+    }, [user, authLoading, router]);
+
+    if (authLoading || (user?.role !== "superadmin")) return null; // Or unauthorized component
 
     // Sync from Firestore
     useEffect(() => {

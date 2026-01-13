@@ -3,6 +3,7 @@
 import { Search, Plus, User, MoreVertical, Shield, Edit, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
+import { seedDatabase } from "@/lib/seeder"; // Added import
 
 import { db } from "@/lib/firebase";
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
@@ -28,15 +29,32 @@ const initialUsers = [
     { id: 17, name: "윤하늘", email: "luckysky2030@mangoslab.com", role: "user", department: "망고슬래브", status: "active" },
 ];
 
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+// ...
+
 export default function UserManagement() {
+    const { user, isLoading: authLoading } = useAuth();
+    const router = useRouter();
+
+    // Route Protection
+    useEffect(() => {
+        if (!authLoading && user?.role === "user") {
+            router.push("/");
+        }
+    }, [user, authLoading, router]);
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [users, setUsers] = useState<any[]>(initialUsers);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [openMenuId, setOpenMenuId] = useState<string | number | null>(null);
-
     const [deletingUserId, setDeletingUserId] = useState<string | number | null>(null);
+
+    // Restore State
+    const [isRestoring, setIsRestoring] = useState(false);
 
     // Sync from Firestore
     useEffect(() => {
@@ -46,7 +64,15 @@ export default function UserManagement() {
             snapshot.forEach((doc) => {
                 data.push({ ...doc.data(), id: doc.id });
             });
-            setUsers(data.length > 0 ? data : initialUsers);
+            // Update logic: If Firestore has data, use it. Otherwise, keep initialUsers logic (though setUsers default covers it)
+            // Actually, if data is empty, we might show empty. But user wants to recover.
+            if (data.length > 0) {
+                setUsers(data);
+            } else {
+                // If totally empty, maybe show empty? Or mock?
+                // Current requirement is to restore data to DB, so we rely on DB being populated.
+                setUsers([]); // Show empty if DB is empty, so user knows to click Restore
+            }
             setIsLoading(false);
         });
         return () => unsubscribe();
@@ -83,6 +109,20 @@ export default function UserManagement() {
         setIsEditModalOpen(false);
     };
 
+    const handleRestore = async () => {
+        if (!confirm("테스트 데이터를 복구하시겠습니까? 데이터베이스에 기존 테스트 데이터가 추가됩니다.")) return;
+        setIsRestoring(true);
+        try {
+            await seedDatabase();
+            alert("테스트 데이터가 복구되었습니다. 잠시 후 목록이 갱신됩니다.");
+        } catch (error) {
+            console.error(error);
+            alert("데이터 복구 실패");
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
     return (
         <div className="space-y-6" onClick={() => setOpenMenuId(null)}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -90,13 +130,22 @@ export default function UserManagement() {
                     <h1 className="text-2xl font-bold text-foreground">사용자관리</h1>
                     <p className="text-muted-foreground text-sm mt-1">사용자 계정 및 권한을 관리합니다.</p>
                 </div>
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
-                >
-                    <Plus className="h-4 w-4" />
-                    사용자 초대
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleRestore}
+                        disabled={isRestoring}
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors border border-border"
+                    >
+                        {isRestoring ? "복구 중..." : "테스트 데이터 복구"}
+                    </button>
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+                    >
+                        <Plus className="h-4 w-4" />
+                        사용자 초대
+                    </button>
+                </div>
             </div>
 
             {/* Invite Modal */}

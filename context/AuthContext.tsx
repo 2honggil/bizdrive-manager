@@ -11,6 +11,7 @@ type User = {
     email: string;
     role: "superadmin" | "admin" | "user";
     name: string;
+    department?: string;
     uid?: string;
 };
 
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             email: firebaseUser.email!,
                             role: userDoc.role || "user",
                             name: userDoc.name || firebaseUser.displayName || "Unknown",
+                            department: userDoc.department || "",
                             uid: firebaseUser.uid
                         });
                     } else {
@@ -62,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 email: firebaseUser.email!,
                                 role: "superadmin",
                                 name: "이홍길",
+                                department: "망고슬래브",
                                 uid: firebaseUser.uid
                             });
                         } else {
@@ -70,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 email: firebaseUser.email!,
                                 role: "user",
                                 name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
+                                department: "",
                                 uid: firebaseUser.uid
                             });
                         }
@@ -81,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         email: firebaseUser.email!,
                         role: "user",
                         name: firebaseUser.displayName || "User",
+                        department: "",
                         uid: firebaseUser.uid
                     });
                 }
@@ -111,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email: userCredential.user.email!,
                 role: "user", // Will be updated by onAuthStateChanged listener
                 name: userCredential.user.displayName || "User",
+                department: "",
                 uid: userCredential.user.uid
             });
             return { success: true };
@@ -129,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             email: newUserCredential.user.email!,
                             role: "user",
                             name: newUserCredential.user.displayName || "User",
+                            department: "",
                             uid: newUserCredential.user.uid
                         });
                         return { success: true };

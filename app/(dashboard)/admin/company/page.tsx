@@ -1,12 +1,25 @@
 "use client";
 
 import { Building, Save, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CompanyManagement() {
+    const { user, isLoading: authLoading } = useAuth();
+    const router = useRouter();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    // Route Protection
+    useEffect(() => {
+        if (!authLoading && user?.role !== "superadmin") {
+            router.push("/");
+        }
+    }, [user, authLoading, router]);
+
+    if (authLoading || (user?.role !== "superadmin")) return null;
 
     return (
         <div className="space-y-6 max-w-2xl">

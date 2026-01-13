@@ -87,20 +87,26 @@ export default function Sidebar() {
                             <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                                 관리자 메뉴
                             </h3>
-                            {adminNavigation.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={closeMobileMenu}
-                                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 group ${isActive(item.href)
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                                        }`}
-                                >
-                                    <item.icon className="w-4 h-4" />
-                                    {item.name}
-                                </Link>
-                            ))}
+                            {adminNavigation
+                                .filter(item => {
+                                    if (user.role === "superadmin") return true; // Superadmin sees all
+                                    if (user.role === "admin") return item.href === "/admin/users"; // Admin sees only users
+                                    return false;
+                                })
+                                .map((item) => (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        onClick={closeMobileMenu}
+                                        className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 group ${isActive(item.href)
+                                            ? "bg-primary/10 text-primary"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                                            }`}
+                                    >
+                                        <item.icon className="w-4 h-4" />
+                                        {item.name}
+                                    </Link>
+                                ))}
                         </div>
                     )}
                 </div>

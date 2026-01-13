@@ -7,16 +7,14 @@ import { Search, Filter, Download, Plus, MapPin, Camera, ChevronUp, ChevronDown,
 import Modal from "@/components/Modal";
 
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs } from "firebase/firestore";
 import { mockLogs, frequentDestinations } from "@/lib/mockData";
-
-// Define accessible vehicles centrally for this view
-const vehicles = [
-    { id: 1, name: "쏘렌토 (195하4504)" }
-];
+import { useAuth } from "@/context/AuthContext";
 
 export default function VehicleLogs() {
+    const { user } = useAuth();
     const [logs, setLogs] = useState<any[]>(mockLogs);
+    const [vehicles, setVehicles] = useState<any[]>([]); // Dynamic vehicles
     const [isLoading, setIsLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -24,39 +22,75 @@ export default function VehicleLogs() {
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [activeMenuId, setActiveMenuId] = useState<string | number | null>(null);
 
-    // Sync from Firestore
+    // Sync from Firestore (Vehicles & Logs)
     useEffect(() => {
-        const q = query(collection(db, "logs"), orderBy("date", "desc"));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        // Fetch Vehicles first
+        const fetchVehicles = async () => {
+            const q = query(collection(db, "vehicles"));
+            const querySnapshot = await getDocs(q);
+            const allVehicles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+
+            // Filter vehicles based on RBAC
+            let accessibleVehicles = [];
+            if (user?.role === "superadmin") {
+                accessibleVehicles = allVehicles;
+            } else {
+                accessibleVehicles = allVehicles.filter(v => v.department === user?.department);
+            }
+            // If no vehicles found in DB, maybe fallback or empty
+            if (accessibleVehicles.length === 0) {
+                // Fallback for demo if no DB data
+                accessibleVehicles = [{ id: 1, name: "쏘렌토 (195하4504)", department: "망고슬래브" }];
+                if (user?.department && user.department !== "망고슬래브") {
+                    accessibleVehicles = []; // Strict isolation
+                }
+            }
+            setVehicles(accessibleVehicles);
+        };
+
+        if (user) {
+            fetchVehicles();
+        }
+
+        // Fetch Logs
+        const qLogs = query(collection(db, "logs"), orderBy("date", "desc"));
+        const unsubscribeLogs = onSnapshot(qLogs, (querySnapshot) => {
             const logsData: any[] = [];
             querySnapshot.forEach((doc) => {
                 logsData.push({ ...doc.data(), id: doc.id });
             });
-
-            // Robust fallback: Always use mockLogs if Firestore is empty
+            // Update logs state, filtering will happen in derived state
             setLogs(logsData.length > 0 ? logsData : mockLogs);
             setIsLoading(false);
         });
-        return () => unsubscribe();
-    }, []);
+
+        return () => unsubscribeLogs();
+    }, [user]);
 
     // Filtering State
     const [selectedYear, setSelectedYear] = useState("2026");
     const [selectedVehicle, setSelectedVehicle] = useState("전체");
 
-    // Derived Data
-    const uniqueYears = Array.from(new Set(logs.map(log => log.date.split('.')[0]))).sort((a, b) => b.localeCompare(a));
-    const uniqueVehicles = Array.from(new Set(logs.map(log => log.car))).sort();
+    // Derived Data and Isolation Filtering
+    const availableVehicleNames = vehicles.map(v => v.name || `${v.model} (${v.plate})`); // Handle format: Model (Plate)
 
     const filteredLogs = logs.filter(log => {
+        // 1. Data Isolation: Show log only if its vehicle is in accessible list
+        if (!availableVehicleNames.includes(log.car)) return false;
+
+        // 2. User filters
         const logYear = log.date.split('.')[0];
         const matchYear = selectedYear === "전체" || logYear === selectedYear;
         const matchVehicle = selectedVehicle === "전체" || log.car === selectedVehicle;
         return matchYear && matchVehicle;
     });
 
+    // For dropdowns (derived from filtered logs + accessible vehicles)
+    const uniqueYears = Array.from(new Set(logs.filter(l => availableVehicleNames.includes(l.car)).map(log => log.date.split('.')[0]))).sort((a, b) => b.localeCompare(a));
+    const uniqueVehicles = vehicles.map(v => v.name || `${v.model} (${v.plate})`).sort(); // Use accessible vehicles for dropdown
+
     // Initial mileage for the default vehicle
-    const initialCar = vehicles.length === 1 ? vehicles[0].name : "";
+    const initialCar = vehicles.length === 1 ? (vehicles[0].name || `${vehicles[0].model} (${vehicles[0].plate})`) : "";
     const lastLogForInitialCar = initialCar ? logs.find(l => l.car === initialCar) : null;
     const initialKm = lastLogForInitialCar ? lastLogForInitialCar.endKm : 45200;
 
