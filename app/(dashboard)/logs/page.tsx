@@ -7,8 +7,8 @@ import { Search, Filter, Download, Plus, MapPin, Camera, ChevronUp, ChevronDown,
 import Modal from "@/components/Modal";
 
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs } from "firebase/firestore";
-import { mockLogs, frequentDestinations } from "@/lib/mockData";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs, where } from "firebase/firestore";
+import { mockLogs } from "@/lib/mockData";
 import { useAuth } from "@/context/AuthContext";
 
 export default function VehicleLogs() {
@@ -21,6 +21,7 @@ export default function VehicleLogs() {
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
     const [editingId, setEditingId] = useState<string | number | null>(null);
     const [activeMenuId, setActiveMenuId] = useState<string | number | null>(null);
+    const [frequentSpots, setFrequentSpots] = useState<any[]>([]);
 
     // Sync from Firestore (Vehicles & Logs)
     useEffect(() => {
@@ -64,12 +65,43 @@ export default function VehicleLogs() {
             setIsLoading(false);
         });
 
-        return () => unsubscribeLogs();
+        // Sync Frequent Spots from Firestore
+        const qSpots = query(collection(db, "frequent_spots"), where("type", "==", "destination"));
+        const unsubscribeSpots = onSnapshot(qSpots, (querySnapshot) => {
+            const spots: any[] = [];
+            querySnapshot.forEach((doc) => {
+                spots.push({ ...doc.data(), id: doc.id });
+            });
+            // Sort: 본사(파미어스몰) first, then alphabetically
+            const sortedSpots = spots.sort((a, b) => {
+                const isAHeadquarters = a.name?.includes("본사") || a.name?.includes("파미어스몰");
+                const isBHeadquarters = b.name?.includes("본사") || b.name?.includes("파미어스몰");
+
+                if (isAHeadquarters && !isBHeadquarters) return -1;
+                if (!isAHeadquarters && isBHeadquarters) return 1;
+                return (a.name || "").localeCompare(b.name || "");
+            });
+            setFrequentSpots(sortedSpots);
+        }, (error) => {
+            console.error("Error fetching frequent spots:", error);
+        });
+
+        return () => {
+            unsubscribeLogs();
+            unsubscribeSpots();
+        };
     }, [user]);
 
     // Filtering State
     const [selectedYear, setSelectedYear] = useState("2026");
     const [selectedVehicle, setSelectedVehicle] = useState("전체");
+
+    // Sync default driver when user loads
+    useEffect(() => {
+        if (user && !editingId) {
+            setFormData(prev => ({ ...prev, driver: user.name }));
+        }
+    }, [user, editingId]);
 
     // Derived Data and Isolation Filtering
     const availableVehicleNames = vehicles.map(v => v.name || `${v.model} (${v.plate})`); // Handle format: Model (Plate)
@@ -98,7 +130,7 @@ export default function VehicleLogs() {
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         car: initialCar,
-        driver: "홍길동",
+        driver: user?.name || "운전자",
         purpose: "",
         origin: "본사",
         destination: "",
@@ -209,10 +241,11 @@ export default function VehicleLogs() {
 
         // Reset form to latest state
         const lastKm = endKm;
+        const resetCar = vehicles.length === 1 ? (vehicles[0].name || `${vehicles[0].model} (${vehicles[0].plate})`) : "";
         setFormData({
             date: new Date().toISOString().split('T')[0],
-            car: vehicles.length === 1 ? vehicles[0].name : "",
-            driver: "홍길동",
+            car: resetCar,
+            driver: user?.name || "운전자",
             purpose: "",
             origin: "본사",
             destination: "",
@@ -285,14 +318,16 @@ export default function VehicleLogs() {
 
     const handleAddClick = () => {
         setEditingId(null);
-        const initialCar = vehicles.length === 1 ? vehicles[0].name : "";
+        // Use consistent vehicle name format
+        const initialCar = vehicles.length === 1 ? (vehicles[0].name || `${vehicles[0].model} (${vehicles[0].plate})`) : "";
+        // logs are sorted by date desc, so first match is the most recent
         const lastLogForInitialCar = initialCar ? logs.find(l => l.car === initialCar) : null;
         const initialKm = lastLogForInitialCar ? lastLogForInitialCar.endKm : 45200;
 
         setFormData({
             date: new Date().toISOString().split('T')[0],
             car: initialCar,
-            driver: "홍길동",
+            driver: user?.name || "운전자",
             purpose: "",
             origin: "본사",
             destination: "",
@@ -406,7 +441,7 @@ export default function VehicleLogs() {
                                     <input
                                         type="text"
                                         readOnly
-                                        value={vehicles[0].name}
+                                        value={vehicles[0].name || `${vehicles[0].model} (${vehicles[0].plate})`}
                                         className="w-full px-4 py-2 bg-secondary/30 border border-input rounded-lg text-sm text-foreground focus:outline-none cursor-default"
                                     />
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -419,7 +454,7 @@ export default function VehicleLogs() {
                                     value={formData.car}
                                     onChange={e => {
                                         const selectedCar = e.target.value;
-                                        // Find last mileage for this car
+                                        // Find last mileage for this car (logs are sorted desc, so first is most recent)
                                         const lastLog = logs.find(l => l.car === selectedCar);
                                         const lastKm = lastLog ? lastLog.endKm : 45200; // Default if no record
                                         setFormData({
@@ -432,9 +467,10 @@ export default function VehicleLogs() {
                                     className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                                 >
                                     <option value="">선택하세요</option>
-                                    {vehicles.map(v => (
-                                        <option key={v.id} value={v.name}>{v.name}</option>
-                                    ))}
+                                    {vehicles.map(v => {
+                                        const vehicleName = v.name || `${v.model} (${v.plate})`;
+                                        return <option key={v.id} value={vehicleName}>{vehicleName}</option>;
+                                    })}
                                 </select>
                             )}
                         </div>
@@ -480,6 +516,19 @@ export default function VehicleLogs() {
                                 placeholder="예: 본사"
                                 className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                             />
+                            {/* Mobile-friendly Quick Select */}
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                {frequentSpots.map(spot => (
+                                    <button
+                                        key={spot.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, origin: spot.name })}
+                                        className="text-[10px] px-2 py-1 bg-secondary hover:bg-primary/20 hover:text-primary rounded-full border border-border transition-colors"
+                                    >
+                                        {spot.name}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         <div className="space-y-2 text-left">
                             <label className="text-sm font-medium text-foreground">목적지</label>
@@ -492,10 +541,23 @@ export default function VehicleLogs() {
                                 placeholder="예: 강남역"
                                 className="w-full px-4 py-2 bg-secondary/50 border border-input rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                             />
+                            {/* Mobile-friendly Quick Select */}
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                {frequentSpots.map(spot => (
+                                    <button
+                                        key={spot.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, destination: spot.name })}
+                                        className="text-[10px] px-2 py-1 bg-secondary hover:bg-primary/20 hover:text-primary rounded-full border border-border transition-colors"
+                                    >
+                                        {spot.name}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         <datalist id="spots-list">
                             <option value="본사" />
-                            {frequentDestinations.map(spot => (
+                            {frequentSpots.map(spot => (
                                 <option key={spot.id} value={spot.name} />
                             ))}
                         </datalist>

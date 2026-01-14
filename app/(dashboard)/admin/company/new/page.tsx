@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 export default function NewCompanyPage() {
     const router = useRouter();
@@ -21,11 +23,20 @@ export default function NewCompanyPage() {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            await addDoc(collection(db, "companies"), {
+                ...formData,
+                createdAt: serverTimestamp()
+            });
 
-        alert("회사가 성공적으로 등록되었습니다.");
-        router.push("/admin/company");
+            alert("회사가 성공적으로 등록되었습니다.");
+            router.push("/admin/company");
+        } catch (error) {
+            console.error(error);
+            alert("회사 등록 중 오류가 발생했습니다.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

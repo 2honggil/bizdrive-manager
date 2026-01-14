@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, AlertCircle, Loader2 } from "lucide-react";
 import Modal from "@/components/Modal";
 
 import { db } from "@/lib/firebase";
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp, where } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 
 // Mock reservation data with full date strings
@@ -22,6 +22,7 @@ export default function Reservations() {
     const [selectedReservation, setSelectedReservation] = useState<any>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [frequentSpots, setFrequentSpots] = useState<any[]>([]);
 
     // Sync from Firestore
     useEffect(() => {
@@ -41,6 +42,30 @@ export default function Reservations() {
         return () => unsubscribe();
     }, []);
 
+    // Sync Frequent Spots from Firestore
+    useEffect(() => {
+        const q = query(collection(db, "frequent_spots"), where("type", "==", "destination"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const spots: any[] = [];
+            querySnapshot.forEach((doc) => {
+                spots.push({ ...doc.data(), id: doc.id });
+            });
+            // Sort: 본사(파미어스몰) first, then alphabetically
+            const sortedSpots = spots.sort((a, b) => {
+                const isAHeadquarters = a.name?.includes("본사") || a.name?.includes("파미어스몰");
+                const isBHeadquarters = b.name?.includes("본사") || b.name?.includes("파미어스몰");
+
+                if (isAHeadquarters && !isBHeadquarters) return -1;
+                if (!isAHeadquarters && isBHeadquarters) return 1;
+                return (a.name || "").localeCompare(b.name || "");
+            });
+            setFrequentSpots(sortedSpots);
+        }, (error) => {
+            console.error("Error fetching frequent spots:", error);
+        });
+        return () => unsubscribe();
+    }, []);
+
     // Form state
     const [formData, setFormData] = useState({
         car: "기아 쏘렌토 (195하4504)",
@@ -48,6 +73,8 @@ export default function Reservations() {
         startTime: "09:00",
         endDate: "2026-01-09",
         endTime: "10:00",
+        startLocation: "",
+        endLocation: "",
         purpose: "외근"
     });
 
@@ -83,7 +110,9 @@ export default function Reservations() {
         setFormData({
             ...formData,
             startDate: dateStr,
-            endDate: dateStr
+            endDate: dateStr,
+            car: "기아 쏘렌토 (195하4504)", // Reset to default or current
+            purpose: "외근"
         });
         setIsReserveModalOpen(true);
     };
@@ -127,6 +156,8 @@ export default function Reservations() {
             date: formData.startDate,
             startTime: formData.startTime,
             endTime: formData.endTime,
+            startLocation: formData.startLocation,
+            endLocation: formData.endLocation,
             status: "confirmed",
             color: randomColor,
             createdAt: Timestamp.now()
@@ -149,6 +180,8 @@ export default function Reservations() {
             startTime: "09:00",
             endDate: "2026-01-09",
             endTime: "10:00",
+            startLocation: "",
+            endLocation: "",
             purpose: "외근"
         });
         setError(null);
@@ -392,6 +425,14 @@ export default function Reservations() {
                             {error}
                         </div>
                     )}
+
+                    {/* Hidden Datalist for Locations */}
+                    <datalist id="locations-list">
+                        {frequentSpots.map((dest) => (
+                            <option key={dest.id} value={dest.name} />
+                        ))}
+                    </datalist>
+
                     <div className="space-y-2">
                         <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">차량 선택</label>
                         <select
@@ -404,6 +445,16 @@ export default function Reservations() {
                             <option>기아 쏘렌토 (195하4504)</option>
                         </select>
                     </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">운전자 (자동 입력)</label>
+                        <div className="w-full px-4 py-3 bg-secondary/20 border border-white/5 rounded-xl text-sm text-muted-foreground flex items-center gap-2 cursor-not-allowed">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            {user?.name || "사용자"}
+                            <span className="text-xs opacity-50 ml-auto">로그인 계정</span>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">시작 날짜</label>
@@ -448,6 +499,58 @@ export default function Reservations() {
                             />
                         </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">출발지 (선택)</label>
+                            <input
+                                type="text"
+                                list="locations-list"
+                                placeholder="직접 입력 또는 선택"
+                                value={formData.startLocation}
+                                onChange={(e) => setFormData({ ...formData, startLocation: e.target.value })}
+                                className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            />
+                            {/* Mobile-friendly Quick Select */}
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                {frequentSpots.map(spot => (
+                                    <button
+                                        key={spot.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, startLocation: spot.name })}
+                                        className="text-[10px] px-2 py-1 bg-secondary hover:bg-primary/20 hover:text-primary rounded-full border border-border transition-colors"
+                                    >
+                                        {spot.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">목적지 (선택)</label>
+                            <input
+                                type="text"
+                                list="locations-list"
+                                placeholder="직접 입력 또는 선택"
+                                value={formData.endLocation}
+                                onChange={(e) => setFormData({ ...formData, endLocation: e.target.value })}
+                                className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                            />
+                            {/* Mobile-friendly Quick Select */}
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                {frequentSpots.map(spot => (
+                                    <button
+                                        key={spot.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, endLocation: spot.name })}
+                                        className="text-[10px] px-2 py-1 bg-secondary hover:bg-primary/20 hover:text-primary rounded-full border border-border transition-colors"
+                                    >
+                                        {spot.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">목적</label>
                         <select
@@ -498,6 +601,24 @@ export default function Reservations() {
                                 </div>
                             </div>
                         </div>
+
+                        {(selectedReservation.startLocation || selectedReservation.endLocation) && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">출발지</label>
+                                    <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground min-h-[46px]">
+                                        {selectedReservation.startLocation || "-"}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">목적지</label>
+                                    <div className="w-full px-4 py-3 bg-secondary/50 border border-white/5 rounded-xl text-sm text-foreground min-h-[46px]">
+                                        {selectedReservation.endLocation || "-"}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {selectedReservation.purpose && (
                             <div className="space-y-2">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">목적</label>
